@@ -42,7 +42,17 @@ let auth = null;
 let db = null;
 let storage = null;
 
-// Support Vite environment variables (e.g. GitHub Secrets / Actions / .env) with fallback to applet config
+// Support Vite environment variables (e.g. Netlify / Vercel / GitHub Secrets / .env) with fallback to project config
+const projectDefaultConfig = {
+  apiKey: "AIzaSyASjkHYDH_gNtQWIqi5o665kSsQ845jnlI",
+  authDomain: "general-4ca31.firebaseapp.com",
+  projectId: "general-4ca31",
+  storageBucket: "general-4ca31.firebasestorage.app",
+  messagingSenderId: "278319187482",
+  appId: "1:278319187482:web:15f5fc7856f5618a5a33a3",
+  measurementId: "G-7QCY8Z5CQQ"
+};
+
 const envConfig = {
   apiKey: import.meta.env?.VITE_FIREBASE_API_KEY,
   authDomain: import.meta.env?.VITE_FIREBASE_AUTH_DOMAIN,
@@ -53,12 +63,11 @@ const envConfig = {
   firestoreDatabaseId: import.meta.env?.VITE_FIREBASE_FIRESTORE_DATABASE_ID
 };
 
-const activeConfig = (envConfig.apiKey && envConfig.projectId)
-  ? {
-      ...firebaseConfig,
-      ...Object.fromEntries(Object.entries(envConfig).filter(([_, v]) => v != null && v !== ''))
-    }
-  : firebaseConfig;
+const activeConfig = {
+  ...projectDefaultConfig,
+  ...firebaseConfig,
+  ...Object.fromEntries(Object.entries(envConfig).filter(([_, v]) => v != null && v !== ''))
+};
 
 try {
   if (activeConfig && activeConfig.apiKey) {

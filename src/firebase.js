@@ -15,6 +15,8 @@ import {
   getFirestore,
   doc,
   getDoc,
+  setDoc,
+  deleteDoc,
   runTransaction
 } from 'firebase/firestore';
 import {
@@ -41,8 +43,7 @@ let db = null;
 let storage = null;
 
 // The checked-in Firebase config is the fallback. Environment variables can override it.
-// Do NOT merge a second hard-coded Firebase project over firebaseConfig: doing so can
-// silently connect authentication and Firestore to different projects/databases.
+// Never merge a second hard-coded Firebase project over firebaseConfig.
 const envConfig = {
   apiKey: import.meta.env?.VITE_FIREBASE_API_KEY,
   authDomain: import.meta.env?.VITE_FIREBASE_AUTH_DOMAIN,
@@ -62,7 +63,6 @@ try {
   if (activeConfig && activeConfig.apiKey) {
     app = initializeApp(activeConfig);
     auth = getAuth(app);
-    // Use the explicitly configured named database when one is configured.
     db = activeConfig.firestoreDatabaseId && activeConfig.firestoreDatabaseId !== '(default)'
       ? getFirestore(app, activeConfig.firestoreDatabaseId)
       : getFirestore(app);
@@ -198,7 +198,7 @@ export function subscribeToAuth(callback) {
 
 function translateAuthError(code) {
   switch (code) {
-    case 'auth/operation-not-allowed': return 'E-Mail/Passwort ist in der Firebase Console noch deaktiviert (unter Firebase Console -> Authentication -> Sign-in method aktivieren). Nutze alternativ Google, GitHub oder den Gast-Modus!';
+    case 'auth/operation-not-allowed': return 'E-Mail/Passwort ist in der Firebase Console noch deaktiviert. Nutze alternativ Google, GitHub oder den Gast-Modus!';
     case 'auth/invalid-email': return 'Ungültige E-Mail-Adresse.';
     case 'auth/user-disabled': return 'Dieser Account wurde deaktiviert.';
     case 'auth/user-not-found':
@@ -250,7 +250,7 @@ export async function uploadImage(file, path, optimizerFn = optimizeImage) {
       })();
       return await Promise.race([
         uploadPromise,
-        new Promise((_, reject) => setTimeout(() => reject(new Error('Storage timeout')), 5000))
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Storage timeout')), 10000))
       ]);
     } catch (err) {
       console.warn('Storage upload failed; using optimized DataURL fallback:', err);
@@ -279,7 +279,7 @@ export function validateUsername(username) {
   return { valid: true, username: norm };
 }
 
-function withTimeout(promise, ms = 10000, fallbackMessage = 'Timeout') {
+function withTimeout(promise, ms = 30000, fallbackMessage = 'Timeout') {
   return Promise.race([
     promise,
     new Promise((_, reject) => setTimeout(() => reject(new Error(fallbackMessage)), ms))
@@ -293,13 +293,12 @@ export async function checkUsernameAvailability(username, currentUid) {
 
   if (db) {
     try {
-      const snap = await withTimeout(getDoc(doc(db, 'usernames', norm)), 10000, 'Username check timeout');
+      const snap = await withTimeout(getDoc(doc(db, 'usernames', norm)), 15000, 'Username check timeout');
       if (!snap.exists()) return { available: true, username: norm };
       const data = snap.data();
       if (data.uid === currentUid) return { available: true, isCurrentOwner: true, username: norm };
       return { available: false, reason: 'Dieser Benutzername ist bereits vergeben.' };
     } catch (error) {
-      // Never report "available" when the authoritative Firestore check could not be completed.
       console.error('Firestore username availability check failed:', error);
       return { available: false, reason: 'Verfügbarkeit konnte gerade nicht geprüft werden. Bitte erneut versuchen.' };
     }
@@ -314,7 +313,7 @@ export async function checkUsernameAvailability(username, currentUid) {
 export async function getUserProfile(uid) {
   if (db && !uid.startsWith('guest_')) {
     try {
-      const snap = await withTimeout(getDoc(doc(db, 'profiles', uid)), 10000, 'Firestore profile load timeout');
+      const snap = await withTimeout(getDoc(doc(db, 'profiles', uid)), 15000, 'Firestore profile load timeout');
       if (snap.exists()) {
         const data = snap.data();
         const local = getLocalProfiles();
@@ -328,6 +327,41 @@ export async function getUserProfile(uid) {
     }
   }
   return getLocalProfiles()[uid] || null;
+}
+
+function formatFirestoreSaveError(error) {
+  const code = error?.code || '';
+  const message = error?.message || '';
+  if (code === 'permission-denied') {
+    return 'Firestore verweigert das Speichern. Bitte prüfe die Firestore-Sicherheitsregeln für das verwendete Firebase-Projekt.';
+  }
+  if (code === 'unauthenticated') {
+    return 'Die Anmeldung ist für Firestore nicht mehr gültig. Bitte einmal abmelden und erneut anmelden.';
+  }
+  if (code === 'failed-precondition') {
+    return 'Firestore konnte die Speicherung wegen einer Datenbank-Voraussetzung nicht abschließen. Bitte erneut versuchen.';
+  }
+  if (code === 'resource-exhausted') {
+    return 'Das Profil ist zu groß für Firestore. Bitte kleinere Bilder verwenden.';
+  }
+  if (code === 'unavailable') {
+    return 'Firestore ist gerade nicht erreichbar. Bitte erneut versuchen.';
+  }
+  if (message.includes('maximum allowed size')) {
+    return 'Das Profil ist zu groß für Firestore. Bitte kleinere Bilder verwenden.';
+  }
+  return 'Das Profil konnte nicht dauerhaft gespeichert werden. Bitte erneut versuchen.';
+}
+
+function cacheSavedProfile(uid, completePayload, oldUsername, newUsername) {
+  const localProfiles = getLocalProfiles();
+  localProfiles[uid] = completePayload;
+  saveLocalProfiles(localProfiles);
+
+  const localUsernames = getLocalUsernames();
+  if (oldUsername && oldUsername !== newUsername) delete localUsernames[oldUsername];
+  localUsernames[newUsername] = uid;
+  saveLocalUsernames(localUsernames);
 }
 
 export async function saveUserProfileTransaction(uid, profileData, oldUsername = '') {
@@ -347,58 +381,66 @@ export async function saveUserProfileTransaction(uid, profileData, oldUsername =
     updatedAt: Date.now()
   };
 
-  // Guests are intentionally local-only.
   if (uid.startsWith('guest_')) {
-    const localProfiles = getLocalProfiles();
-    localProfiles[uid] = completePayload;
-    saveLocalProfiles(localProfiles);
-    const localUsernames = getLocalUsernames();
-    if (normalizedOld && normalizedOld !== newUsername) delete localUsernames[normalizedOld];
-    localUsernames[newUsername] = uid;
-    saveLocalUsernames(localUsernames);
+    cacheSavedProfile(uid, completePayload, normalizedOld, newUsername);
     return newUsername;
   }
 
   if (!db) throw new Error('Firebase/Firestore ist nicht verfügbar. Das Profil wurde nicht gespeichert.');
+  if (!auth?.currentUser || auth.currentUser.uid !== uid) {
+    throw new Error('Deine Anmeldung ist nicht mehr gültig. Bitte einmal abmelden und erneut anmelden.');
+  }
 
   const userProfileRef = doc(db, 'profiles', uid);
   const newUsernameRef = doc(db, 'usernames', newUsername);
-  const oldUsernameRef = normalizedOld && normalizedOld !== newUsername ? doc(db, 'usernames', normalizedOld) : null;
 
   try {
-    await withTimeout(runTransaction(db, async (transaction) => {
-      if (newUsername !== normalizedOld) {
-        const usernameSnap = await transaction.get(newUsernameRef);
-        if (usernameSnap.exists()) {
-          const existingData = usernameSnap.data();
-          if (existingData.uid && existingData.uid !== uid) {
-            throw new Error('Dieser Benutzername ist bereits von einem anderen Benutzer vergeben.');
-          }
+    // Most saves keep the same username. Avoid a transaction in that case.
+    // This makes ordinary profile saves much more reliable and still checks ownership.
+    if (newUsername === normalizedOld) {
+      const usernameSnap = await withTimeout(getDoc(newUsernameRef), 15000, 'Username ownership check timeout');
+      if (usernameSnap.exists()) {
+        const existingData = usernameSnap.data();
+        if (existingData.uid && existingData.uid !== uid) {
+          throw new Error('Dieser Benutzername ist bereits von einem anderen Benutzer vergeben.');
         }
+      }
 
-        transaction.set(newUsernameRef, { uid, updatedAt: Date.now() });
-        if (oldUsernameRef) transaction.delete(oldUsernameRef);
-      } else {
-        transaction.set(newUsernameRef, { uid, updatedAt: Date.now() }, { merge: true });
+      await withTimeout(setDoc(newUsernameRef, { uid, updatedAt: Date.now() }, { merge: true }), 15000, 'Username save timeout');
+      await withTimeout(setDoc(userProfileRef, completePayload), 15000, 'Profile save timeout');
+      cacheSavedProfile(uid, completePayload, '', newUsername);
+      return newUsername;
+    }
+
+    // Username changes remain atomic: claim the new name and update the profile together.
+    const oldUsernameRef = doc(db, 'usernames', normalizedOld);
+    await withTimeout(runTransaction(db, async (transaction) => {
+      const newSnap = await transaction.get(newUsernameRef);
+      if (newSnap.exists()) {
+        const existingData = newSnap.data();
+        if (existingData.uid && existingData.uid !== uid) {
+          throw new Error('Dieser Benutzername ist bereits von einem anderen Benutzer vergeben.');
+        }
+      }
+
+      const oldSnap = normalizedOld ? await transaction.get(oldUsernameRef) : null;
+
+      transaction.set(newUsernameRef, { uid, updatedAt: Date.now() });
+      if (oldSnap?.exists() && oldSnap.data()?.uid === uid) {
+        transaction.delete(oldUsernameRef);
       }
       transaction.set(userProfileRef, completePayload);
-    }), 10000, 'Firestore save transaction timeout');
+    }), 30000, 'Firestore save transaction timeout');
+
+    cacheSavedProfile(uid, completePayload, normalizedOld, newUsername);
+    return newUsername;
   } catch (firestoreErr) {
-    if (firestoreErr?.message?.includes('bereits von einem anderen Benutzer vergeben')) throw firestoreErr;
-    console.error('Firestore save failed:', firestoreErr);
-    throw new Error('Das Profil konnte nicht dauerhaft gespeichert werden. Bitte erneut versuchen.');
+    if (firestoreErr?.message?.includes('bereits von einem anderen Benutzer vergeben')) {
+      throw firestoreErr;
+    }
+    console.error('[Linkspace] Firestore profile save failed:', firestoreErr);
+    throw new Error(formatFirestoreSaveError(firestoreErr));
   }
-
-  // Only cache authenticated data after Firestore has successfully committed it.
-  const localProfiles = getLocalProfiles();
-  localProfiles[uid] = completePayload;
-  saveLocalProfiles(localProfiles);
-  const localUsernames = getLocalUsernames();
-  if (normalizedOld && normalizedOld !== newUsername) delete localUsernames[normalizedOld];
-  localUsernames[newUsername] = uid;
-  saveLocalUsernames(localUsernames);
-
-  return newUsername;
 }
 
 export async function getPublicProfileByUsername(username) {
@@ -407,24 +449,22 @@ export async function getPublicProfileByUsername(username) {
 
   if (db) {
     try {
-      const usernameSnap = await withTimeout(getDoc(doc(db, 'usernames', norm)), 10000, 'Public username lookup timeout');
+      const usernameSnap = await withTimeout(getDoc(doc(db, 'usernames', norm)), 15000, 'Public username lookup timeout');
       if (!usernameSnap.exists()) return null;
       const { uid } = usernameSnap.data();
       if (!uid) return null;
 
-      const profileSnap = await withTimeout(getDoc(doc(db, 'profiles', uid)), 10000, 'Public profile lookup timeout');
+      const profileSnap = await withTimeout(getDoc(doc(db, 'profiles', uid)), 15000, 'Public profile lookup timeout');
       return profileSnap.exists() ? profileSnap.data() : null;
     } catch (error) {
       console.error('Firestore public profile lookup failed:', error);
-      // Do not hide a real remote failure with stale local data for public pages.
       return null;
     }
   }
 
-  // Local-only fallback is only used when Firebase is genuinely unavailable.
   const localUsernames = getLocalUsernames();
-  const uid = localUsernames[norm];
-  if (uid) return getLocalProfiles()[uid] || null;
+  const localUid = localUsernames[norm];
+  if (localUid) return getLocalProfiles()[localUid] || null;
   return Object.values(getLocalProfiles()).find(p => p.username?.toLowerCase() === norm) || null;
 }
 

@@ -7,7 +7,7 @@ import {
   getUserProfile,
   saveUserProfileTransaction
 } from './firebase';
-import { DEFAULT_PROFILE } from './constants';
+import { DEFAULT_PROFILE, DISCORD_SUPPORT_URL } from './constants';
 import { Header } from './components/Header';
 import { AuthModal } from './components/AuthModal';
 import { ProfileEditor } from './components/ProfileEditor';
@@ -15,7 +15,7 @@ import { LinksEditor } from './components/LinksEditor';
 import { DesignEditor } from './components/DesignEditor';
 import { PhonePreview } from './components/PhonePreview';
 import { PublicProfile } from './pages/PublicProfile';
-import { Smartphone, Edit3, Loader2 } from 'lucide-react';
+import { Smartphone, Edit3, Loader2, MessageSquare, ExternalLink, Sparkles, Heart } from 'lucide-react';
 import './styles.css';
 
 function Dashboard() {
@@ -194,6 +194,31 @@ function Dashboard() {
             setStyling={handleStylingChange}
             uid={user.uid}
           />
+
+          {/* Discord Community Support Card */}
+          <div className="discord-support-card" id="discord-support-banner">
+            <div className="discord-support-inner">
+              <div className="discord-icon-badge">
+                <MessageSquare size={20} className="text-indigo-400" />
+              </div>
+              <div className="discord-support-content">
+                <h4>Brauchst du Hilfe oder hast Feedback?</h4>
+                <p>
+                  Tritt unserem offiziellen Discord Server bei für schnellen Support, Feature-Wünsche und Updates.
+                </p>
+              </div>
+              <a
+                href={DISCORD_SUPPORT_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn btn-discord"
+                id="btn-join-discord"
+              >
+                <span>Discord beitreten</span>
+                <ExternalLink size={14} />
+              </a>
+            </div>
+          </div>
         </section>
 
         {/* Live Smartphone Preview Column */}

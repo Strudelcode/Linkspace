@@ -1,13 +1,14 @@
 import React, { useState } from 'react';
-import { loginWithEmail, registerWithEmail, loginWithGoogle } from '../firebase';
-import { Loader2, AlertCircle, Sparkles, CheckCircle2, Lock, Mail, User } from 'lucide-react';
+import { loginWithEmail, registerWithEmail, loginWithGoogle, loginAsGuest } from '../firebase';
+import { Loader2, AlertCircle, Sparkles, CheckCircle2, Lock, Mail, User, ArrowRight, MessageSquare } from 'lucide-react';
 import { Logo } from './Logo';
+import { DISCORD_SUPPORT_URL } from '../constants';
 
 export function AuthModal({ onAuthSuccess }) {
   const [isRegister, setIsRegister] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [name, setName] = useState('');
+  const [displayName, setDisplayName] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -18,10 +19,7 @@ export function AuthModal({ onAuthSuccess }) {
 
     try {
       if (isRegister) {
-        if (password.length < 6) {
-          throw new Error('Das Passwort muss mindestens 6 Zeichen lang sein.');
-        }
-        await registerWithEmail(email, password, name);
+        await registerWithEmail(email, password, displayName);
       } else {
         await loginWithEmail(email, password);
       }
@@ -46,21 +44,29 @@ export function AuthModal({ onAuthSuccess }) {
     }
   };
 
+  const handleGuestLogin = () => {
+    setError('');
+    loginAsGuest('Mein Linkspace', 'creator');
+    if (onAuthSuccess) onAuthSuccess();
+  };
+
   return (
     <div className="auth-fullscreen" id="auth-fullscreen-container">
       <div className="auth-card" id="auth-card-main">
-        <div className="auth-header">
-          <div className="auth-logo-badge">
-            <Logo size={42} />
+        {/* Rounded Harmonious App Logo Badge (Screenshot 1 Fix) */}
+        <div className="auth-header text-center">
+          <div className="auth-logo-badge" id="auth-brand-logo-badge">
+            <Logo size={46} className="auth-logo-img rounded-xl" />
           </div>
           <h2>{isRegister ? 'Account erstellen' : 'Willkommen bei Linkspace'}</h2>
           <p className="auth-sub">
             {isRegister
-              ? 'Erstelle deine persönliche Link-in-Bio Seite in wenigen Sekunden.'
+              ? 'Erstelle deine persönliche Link-in-Bio Seite in Sekunden.'
               : 'Melde dich an, um dein Profil und deine Links zu verwalten.'}
           </p>
         </div>
 
+        {/* Google SSO */}
         <button
           type="button"
           className="btn-google"
@@ -68,22 +74,22 @@ export function AuthModal({ onAuthSuccess }) {
           onClick={handleGoogleLogin}
           disabled={loading}
         >
-          <svg className="google-icon" viewBox="0 0 24 24" width="18" height="18">
+          <svg width="18" height="18" viewBox="0 0 18 18">
             <path
               fill="#4285F4"
-              d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+              d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.616z"
             />
             <path
               fill="#34A853"
-              d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+              d="M9 18c2.43 0 4.467-.806 5.956-2.184l-2.908-2.258c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332C2.438 15.983 5.482 18 9 18z"
             />
             <path
               fill="#FBBC05"
-              d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
+              d="M3.964 10.707c-.18-.54-.282-1.117-.282-1.707s.102-1.167.282-1.707V4.961H.957C.347 6.175 0 7.55 0 9s.347 2.825.957 4.039l3.007-2.332z"
             />
             <path
               fill="#EA4335"
-              d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
+              d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0 5.482 0 2.438 2.017.957 4.961L3.964 7.293C4.672 5.166 6.656 3.58 9 3.58z"
             />
           </svg>
           <span>Mit Google fortfahren</span>
@@ -95,66 +101,73 @@ export function AuthModal({ onAuthSuccess }) {
 
         {error && (
           <div className="auth-error-banner" id="auth-error-alert">
-            <AlertCircle size={16} />
-            <span>{error}</span>
+            <div className="flex items-start gap-2.5">
+              <AlertCircle size={16} className="text-red-400 shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <span className="block font-medium">{error}</span>
+                <button
+                  type="button"
+                  onClick={handleGuestLogin}
+                  className="auth-error-fallback-link mt-1.5"
+                >
+                  <Sparkles size={12} className="text-amber-400" />
+                  <span>Direkt als Gast starten & alle Features nutzen</span>
+                </button>
+              </div>
+            </div>
           </div>
         )}
 
         <form onSubmit={handleSubmit} className="auth-form" id="auth-form-credentials">
           {isRegister && (
             <div className="form-group">
-              <label htmlFor="reg-name">Name</label>
+              <label>Dein Name</label>
               <div className="input-with-icon">
                 <User size={16} className="input-icon" />
                 <input
-                  id="reg-name"
                   type="text"
                   placeholder="z.B. Alex Schmidt"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  disabled={loading}
+                  value={displayName}
+                  onChange={(e) => setDisplayName(e.target.value)}
+                  required={isRegister}
                 />
               </div>
             </div>
           )}
 
           <div className="form-group">
-            <label htmlFor="auth-email">E-Mail-Adresse</label>
+            <label>E-Mail-Adresse</label>
             <div className="input-with-icon">
               <Mail size={16} className="input-icon" />
               <input
-                id="auth-email"
                 type="email"
-                required
                 placeholder="name@example.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                disabled={loading}
+                required
               />
             </div>
           </div>
 
           <div className="form-group">
-            <label htmlFor="auth-password">Passwort</label>
+            <label>Passwort</label>
             <div className="input-with-icon">
               <Lock size={16} className="input-icon" />
               <input
-                id="auth-password"
                 type="password"
-                required
-                minLength={6}
                 placeholder="Mindestens 6 Zeichen"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                disabled={loading}
+                required
+                minLength={6}
               />
             </div>
           </div>
 
           <button
             type="submit"
-            className="btn btn-primary btn-full"
-            id="btn-auth-submit"
+            className="btn btn-primary btn-auth-submit"
+            id="btn-submit-auth"
             disabled={loading}
           >
             {loading ? (
@@ -162,18 +175,16 @@ export function AuthModal({ onAuthSuccess }) {
                 <Loader2 size={16} className="spin" />
                 <span>Bitte warten …</span>
               </>
-            ) : isRegister ? (
-              'Kostenlos registrieren'
             ) : (
-              'Anmelden'
+              <span>{isRegister ? 'Kostenlos registrieren' : 'Anmelden'}</span>
             )}
           </button>
         </form>
 
-        <div className="auth-footer">
+        <div className="auth-footer-flow">
           <button
             type="button"
-            className="btn-link"
+            className="btn-toggle-mode"
             id="btn-toggle-auth-mode"
             onClick={() => {
               setIsRegister(!isRegister);
@@ -184,6 +195,45 @@ export function AuthModal({ onAuthSuccess }) {
               ? 'Bereits einen Account? Hier anmelden'
               : 'Noch kein Account? Kostenlos registrieren'}
           </button>
+
+          {/* High-Contrast Beautiful Guest Login Card (Screenshot 2 Fix) */}
+          <div className="auth-guest-section" id="auth-guest-box">
+            <div className="auth-guest-divider">
+              <span>Keine Lust auf Registrierung?</span>
+            </div>
+            
+            <button
+              type="button"
+              onClick={handleGuestLogin}
+              className="btn-guest-card"
+              id="btn-guest-mode"
+            >
+              <div className="guest-card-left">
+                <div className="guest-icon-pill">
+                  <Sparkles size={14} className="text-amber-300" />
+                </div>
+                <div className="guest-card-texts">
+                  <span className="guest-card-title">Ohne Anmeldung als Gast ausprobieren</span>
+                  <span className="guest-card-desc">Sofort loslegen, alle Links & Designs frei testen</span>
+                </div>
+              </div>
+              <ArrowRight size={16} className="guest-arrow" />
+            </button>
+          </div>
+
+          {/* Discord Community Support Link */}
+          <div className="auth-support-link-box">
+            <a
+              href={DISCORD_SUPPORT_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="auth-discord-link"
+              title="Discord Support Community"
+            >
+              <MessageSquare size={13} className="text-indigo-400" />
+              <span>Fragen oder Support? Tritt unserer Discord-Community bei</span>
+            </a>
+          </div>
         </div>
       </div>
     </div>

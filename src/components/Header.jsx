@@ -1,7 +1,9 @@
-import React from 'react';
-import { ExternalLink, Save, LogOut, Check, Loader2, Sparkles, User, AlertCircle } from 'lucide-react';
+import React, { useState } from 'react';
+import { ExternalLink, Save, LogOut, Check, Loader2, Sparkles, User, AlertCircle, MessageSquare, QrCode } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Logo } from './Logo';
+import { DISCORD_SUPPORT_URL } from '../constants';
+import { QrCodeModal } from './QrCodeModal';
 
 export function Header({
   profile,
@@ -13,6 +15,7 @@ export function Header({
   user,
   onLogout
 }) {
+  const [showQrModal, setShowQrModal] = useState(false);
   const publicUrl = profile.username ? `/${profile.username}` : null;
 
   return (
@@ -30,6 +33,19 @@ export function Header({
       </div>
 
       <div className="header-right">
+        {/* Discord Support Server Link */}
+        <a
+          href={DISCORD_SUPPORT_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="btn-discord-header"
+          id="btn-header-discord"
+          title="Hilfe & Feedback im Discord Server"
+        >
+          <MessageSquare size={14} className="text-indigo-400" />
+          <span className="hidden-mobile">Discord Support</span>
+        </a>
+
         {saveError && (
           <div className="save-error-pill" title={saveError}>
             <AlertCircle size={14} />
@@ -41,6 +57,19 @@ export function Header({
           <span className="unsaved-indicator">
             Ungespeicherte Änderungen
           </span>
+        )}
+
+        {publicUrl && (
+          <button
+            type="button"
+            className="btn btn-secondary btn-sm"
+            onClick={() => setShowQrModal(true)}
+            title="QR-Code anzeigen"
+            id="btn-header-qr"
+          >
+            <QrCode size={14} />
+            <span className="hidden-mobile">QR-Code</span>
+          </button>
         )}
 
         {publicUrl ? (
@@ -101,6 +130,15 @@ export function Header({
           </div>
         )}
       </div>
+
+      {showQrModal && profile.username && (
+        <QrCodeModal
+          username={profile.username}
+          displayName={profile.displayName}
+          avatarUrl={profile.avatarUrl}
+          onClose={() => setShowQrModal(false)}
+        />
+      )}
     </header>
   );
 }

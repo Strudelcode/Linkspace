@@ -1,17 +1,27 @@
-import React, { useState } from 'react';
-import { ExternalLink, Copy, Check, Share2, Sparkles } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { ExternalLink, Copy, Check, Share2, Sparkles, QrCode } from 'lucide-react';
 import { FONT_OPTIONS } from '../constants';
 import { LinkIcon } from './LinkIcon';
 import { Logo } from './Logo';
+import { applyCustomFont, getFontFamilyString, computeButtonStyle } from '../utils/fontLoader';
+import { QrCodeModal } from './QrCodeModal';
 
 export function PhonePreview({ profile }) {
   const [copied, setCopied] = useState(false);
+  const [showQrModal, setShowQrModal] = useState(false);
 
   const styling = profile.styling || {};
   const links = (profile.links || []).filter((l) => l.active !== false);
 
-  // Derive font family
-  const selectedFont = FONT_OPTIONS.find((f) => f.id === styling.font) || FONT_OPTIONS[0];
+  // Apply custom font if available
+  useEffect(() => {
+    if (styling.customFont) {
+      applyCustomFont(styling.customFont);
+    }
+  }, [styling.customFont]);
+
+  const activeFontFamily = getFontFamilyString(styling, FONT_OPTIONS);
+  const { style: computedBtnStyle, hoverClass } = computeButtonStyle(styling, FONT_OPTIONS);
 
   // Derive background style
   let bgStyle = {};
@@ -31,14 +41,6 @@ export function PhonePreview({ profile }) {
     };
   }
 
-  // Derive button style
-  const btnStyle = {
-    backgroundColor: styling.button || '#ffffff',
-    color: styling.buttonText || '#000000',
-    borderRadius: `${styling.radius ?? 12}px`,
-    fontFamily: selectedFont.family
-  };
-
   const handleCopyLink = (e) => {
     e.stopPropagation();
     if (!profile.username) return;
@@ -55,17 +57,32 @@ export function PhonePreview({ profile }) {
     <div className="preview-container" id="phone-preview-wrapper">
       <div className="preview-top-bar">
         <span className="preview-badge">LIVE VORSCHAU</span>
-        {profile.username && (
-          <button
-            type="button"
-            className="btn-copy-link"
-            onClick={handleCopyLink}
-            title="Link kopieren"
-          >
-            {copied ? <Check size={12} /> : <Copy size={12} />}
-            <span>{copied ? 'Kopiert!' : `linkspace.dev/${profile.username}`}</span>
-          </button>
-        )}
+        
+        <div className="flex items-center gap-2">
+          {profile.username && (
+            <>
+              <button
+                type="button"
+                className="btn-preview-tool"
+                onClick={() => setShowQrModal(true)}
+                title="QR-Code anzeigen"
+              >
+                <QrCode size={13} />
+                <span>QR-Code</span>
+              </button>
+
+              <button
+                type="button"
+                className="btn-copy-link"
+                onClick={handleCopyLink}
+                title="Link kopieren"
+              >
+                {copied ? <Check size={12} className="text-emerald-400" /> : <Copy size={12} />}
+                <span>{copied ? 'Kopiert!' : `@${profile.username}`}</span>
+              </button>
+            </>
+          )}
+        </div>
       </div>
 
       <div className="phone-device" id="phone-mockup-frame">
@@ -78,7 +95,7 @@ export function PhonePreview({ profile }) {
           className="phone-screen"
           style={{
             ...bgStyle,
-            fontFamily: selectedFont.family
+            fontFamily: activeFontFamily
           }}
         >
           {/* Background image layer with blur support */}
@@ -104,7 +121,7 @@ export function PhonePreview({ profile }) {
           )}
 
           <div className="phone-content-scrollable">
-            {/* Avatar */}
+            {/* Avatar & Info */}
             <div className="profile-header-view">
               <div className="profile-avatar-view">
                 {profile.avatarUrl ? (
@@ -120,7 +137,7 @@ export function PhonePreview({ profile }) {
                 )}
               </div>
 
-              <h1 className="profile-name-view">
+              <h1 className="profile-name-view" style={{ fontFamily: activeFontFamily }}>
                 {profile.displayName || 'Dein Name'}
               </h1>
 
@@ -148,8 +165,8 @@ export function PhonePreview({ profile }) {
                       href={link.url || '#'}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className={`profile-link-btn ${showIcon ? 'has-icon' : ''}`}
-                      style={btnStyle}
+                      className={`profile-link-btn ${showIcon ? 'has-icon' : ''} ${hoverClass}`}
+                      style={computedBtnStyle}
                       onClick={(e) => {
                         if (!link.url || link.url === 'https://') e.preventDefault();
                       }}
@@ -160,28 +177,39 @@ export function PhonePreview({ profile }) {
                             link={link}
                             userAvatarUrl={profile.avatarUrl}
                             userDisplayName={profile.displayName}
-                            size={16}
+                            size={18}
                           />
                         </div>
                       )}
-                      <span className="link-title-text">{link.title || 'Unbenannter Link'}</span>
-                      <ExternalLink size={13} className="link-arrow-icon" />
+                      <span className="btn-label-center">{link.title || 'Neuer Link'}</span>
+                      <div className="btn-icon-trailing">
+                        <ExternalLink size={14} />
+                      </div>
                     </a>
                   );
                 })
               )}
             </div>
 
-            {/* Footer Branding */}
-            <div className="phone-footer-branding">
-              <span className="brand-pill-mini">
-                <Logo size={14} className="brand-logo-mini" />
+            {/* Footer Brand in phone */}
+            <div className="phone-footer-brand">
+              <div className="footer-brand-pill">
+                <Logo size={14} />
                 <span>Linkspace</span>
-              </span>
+              </div>
             </div>
           </div>
         </div>
       </div>
+
+      {showQrModal && profile.username && (
+        <QrCodeModal
+          username={profile.username}
+          displayName={profile.displayName}
+          avatarUrl={profile.avatarUrl}
+          onClose={() => setShowQrModal(false)}
+        />
+      )}
     </div>
   );
 }

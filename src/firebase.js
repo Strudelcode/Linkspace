@@ -23,53 +23,60 @@ import {
   uploadBytes,
   getDownloadURL
 } from 'firebase/storage';
+import firebaseConfig from '../firebase-applet-config.json';
 
-// Default config fallback from provisioned Firebase project
-const defaultConfig = {
-  projectId: "gen-lang-client-0499920163",
-  appId: "1:397941216736:web:60ab9d156c2bd00951c785",
-  apiKey: "AIzaSyC0KXJmVDT_eQxrH592IhjR09NJCBUnuYg",
-  authDomain: "gen-lang-client-0499920163.firebaseapp.com",
-  firestoreDatabaseId: "ai-studio-linktree-1a6148bd-0bbb-468c-9c99-3d7da1722460",
-  storageBucket: "gen-lang-client-0499920163.firebasestorage.app",
-  messagingSenderId: "397941216736"
-};
+const LOCAL_GUEST_KEY = 'linkspace_guest_user';
+const LOCAL_PROFILES_KEY = 'linkspace_local_profiles';
+const LOCAL_USERNAMES_KEY = 'linkspace_local_usernames';
 
-const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || defaultConfig.apiKey,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || defaultConfig.authDomain,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || defaultConfig.projectId,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || defaultConfig.storageBucket,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || defaultConfig.messagingSenderId,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID || defaultConfig.appId,
-};
-
-let app;
-let auth;
-let db;
-let storage;
+let app = null;
+let auth = null;
+let db = null;
+let storage = null;
 
 try {
-  app = initializeApp(firebaseConfig);
-  auth = getAuth(app);
-  // Support custom databaseId if configured, or default firestore instance
-  db = defaultConfig.firestoreDatabaseId && defaultConfig.firestoreDatabaseId !== '(default)'
-    ? getFirestore(app, defaultConfig.firestoreDatabaseId)
-    : getFirestore(app);
-  storage = getStorage(app);
+  if (firebaseConfig && firebaseConfig.apiKey) {
+    app = initializeApp(firebaseConfig);
+    auth = getAuth(app);
+    db = firebaseConfig.firestoreDatabaseId && firebaseConfig.firestoreDatabaseId !== '(default)'
+      ? getFirestore(app, firebaseConfig.firestoreDatabaseId)
+      : getFirestore(app);
+    try {
+      storage = getStorage(app);
+    } catch (sErr) {
+      console.warn("Firebase storage init warning:", sErr);
+    }
+  }
 } catch (err) {
-  console.error("Firebase init error:", err);
+  console.warn("Firebase init warning:", err);
 }
 
 const googleProvider = new GoogleAuthProvider();
 googleProvider.setCustomParameters({ prompt: 'select_account' });
 
+// Listeners list for demo/guest auth state synchronization
+const customAuthListeners = new Set();
+
+function notifyCustomAuth(user) {
+  customAuthListeners.forEach((cb) => {
+    try {
+      cb(user);
+    } catch (e) {
+      console.error(e);
+    }
+  });
+}
+
 /**
  * Authentication methods
  */
 export async function loginWithEmail(email, password) {
+  if (!auth) {
+    throw new Error('Firebase ist im Offline-Modus. Bitte als Gast fortfahren.');
+  }
   try {
     const res = await signInWithEmailAndPassword(auth, email, password);
+    localStorage.removeItem(LOCAL_GUEST_KEY);
     return res.user;
   } catch (error) {
     throw new Error(translateAuthError(error.code) || error.message);
@@ -77,11 +84,15 @@ export async function loginWithEmail(email, password) {
 }
 
 export async function registerWithEmail(email, password, displayName = '') {
+  if (!auth) {
+    throw new Error('Firebase ist im Offline-Modus. Bitte als Gast fortfahren.');
+  }
   try {
     const res = await createUserWithEmailAndPassword(auth, email, password);
     if (displayName && res.user) {
       await updateProfile(res.user, { displayName });
     }
+    localStorage.removeItem(LOCAL_GUEST_KEY);
     return res.user;
   } catch (error) {
     throw new Error(translateAuthError(error.code) || error.message);
@@ -89,24 +100,85 @@ export async function registerWithEmail(email, password, displayName = '') {
 }
 
 export async function loginWithGoogle() {
+  if (!auth) {
+    throw new Error('Firebase ist im Offline-Modus. Bitte als Gast fortfahren.');
+  }
   try {
     const res = await signInWithPopup(auth, googleProvider);
+    localStorage.removeItem(LOCAL_GUEST_KEY);
     return res.user;
   } catch (error) {
     throw new Error(translateAuthError(error.code) || error.message);
   }
 }
 
+/**
+ * Instant Demo / Guest login (works without Firebase Auth key)
+ */
+export function loginAsGuest(guestName = 'Creator', guestUsername = 'creator') {
+  const guestUser = {
+    uid: 'guest_' + Math.random().toString(36).substring(2, 9),
+    displayName: guestName,
+    email: `${guestUsername}@linkspace.local`,
+    isAnonymous: true,
+    isGuest: true,
+    photoURL: ''
+  };
+  localStorage.setItem(LOCAL_GUEST_KEY, JSON.stringify(guestUser));
+  notifyCustomAuth(guestUser);
+  return guestUser;
+}
+
 export async function logoutUser() {
-  try {
-    await signOut(auth);
-  } catch (error) {
-    console.error("Logout error:", error);
+  localStorage.removeItem(LOCAL_GUEST_KEY);
+  if (auth) {
+    try {
+      await signOut(auth);
+    } catch (error) {
+      console.warn("Logout error:", error);
+    }
   }
+  notifyCustomAuth(null);
 }
 
 export function subscribeToAuth(callback) {
-  return onAuthStateChanged(auth, callback);
+  customAuthListeners.add(callback);
+
+  // Check if guest user is stored in localStorage
+  const savedGuest = localStorage.getItem(LOCAL_GUEST_KEY);
+  if (savedGuest) {
+    try {
+      const parsed = JSON.parse(savedGuest);
+      callback(parsed);
+    } catch (e) {
+      localStorage.removeItem(LOCAL_GUEST_KEY);
+    }
+  }
+
+  let unsubscribeFirebase = () => {};
+  if (auth) {
+    unsubscribeFirebase = onAuthStateChanged(auth, (user) => {
+      const guest = localStorage.getItem(LOCAL_GUEST_KEY);
+      if (user) {
+        callback(user);
+      } else if (guest) {
+        try {
+          callback(JSON.parse(guest));
+        } catch (e) {
+          callback(null);
+        }
+      } else {
+        callback(null);
+      }
+    });
+  } else if (!savedGuest) {
+    callback(null);
+  }
+
+  return () => {
+    customAuthListeners.delete(callback);
+    unsubscribeFirebase();
+  };
 }
 
 /**
@@ -130,8 +202,46 @@ function translateAuthError(code) {
       return 'Google-Anmeldefenster wurde geschlossen.';
     case 'auth/network-request-failed':
       return 'Netzwerkfehler. Bitte Internetverbindung prüfen.';
+    case 'auth/api-key-not-valid.-please-pass-a-valid-api-key.':
+    case 'auth/api-key-not-valid':
+      return 'Firebase API-Schlüssel wird noch im Google Projekt initialisiert. Nutze den 1-Klick Gast-Modus!';
     default:
       return null;
+  }
+}
+
+/**
+ * Local storage profile helpers for reliable fallback
+ */
+function getLocalProfiles() {
+  try {
+    return JSON.parse(localStorage.getItem(LOCAL_PROFILES_KEY) || '{}');
+  } catch (e) {
+    return {};
+  }
+}
+
+function saveLocalProfiles(profiles) {
+  try {
+    localStorage.setItem(LOCAL_PROFILES_KEY, JSON.stringify(profiles));
+  } catch (e) {
+    console.warn("Could not save to localStorage", e);
+  }
+}
+
+function getLocalUsernames() {
+  try {
+    return JSON.parse(localStorage.getItem(LOCAL_USERNAMES_KEY) || '{}');
+  } catch (e) {
+    return {};
+  }
+}
+
+function saveLocalUsernames(usernames) {
+  try {
+    localStorage.setItem(LOCAL_USERNAMES_KEY, JSON.stringify(usernames));
+  } catch (e) {
+    console.warn("Could not save to localStorage", e);
   }
 }
 
@@ -144,21 +254,24 @@ export async function uploadImage(file, path) {
     throw new Error("Das Bild darf maximal 5 MB groß sein.");
   }
 
-  try {
-    const fileExt = file.name.split('.').pop() || 'jpg';
-    const storageRef = ref(storage, `${path}/${Date.now()}.${fileExt}`);
-    const snapshot = await uploadBytes(storageRef, file);
-    const downloadUrl = await getDownloadURL(snapshot.ref);
-    return downloadUrl;
-  } catch (err) {
-    console.warn("Storage upload failed, using local base64 fallback:", err);
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result);
-      reader.onerror = () => reject(new Error("Bild konnte nicht konvertiert werden."));
-      reader.readAsDataURL(file);
-    });
+  if (storage) {
+    try {
+      const fileExt = file.name.split('.').pop() || 'jpg';
+      const storageRef = ref(storage, `${path}/${Date.now()}.${fileExt}`);
+      const snapshot = await uploadBytes(storageRef, file);
+      const downloadUrl = await getDownloadURL(snapshot.ref);
+      return downloadUrl;
+    } catch (err) {
+      console.warn("Storage upload failed, fallback to base64 DataURL:", err);
+    }
   }
+
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(new Error("Bild konnte nicht konvertiert werden."));
+    reader.readAsDataURL(file);
+  });
 }
 
 export async function uploadAvatar(file, uid) {
@@ -188,49 +301,68 @@ export function validateUsername(username) {
 }
 
 /**
- * Check if a username is available in Firestore
+ * Check if a username is available in Firestore (with local fallback)
  */
 export async function checkUsernameAvailability(username, currentUid) {
   const validation = validateUsername(username);
   if (!validation.valid) return { available: false, reason: validation.message };
 
   const norm = validation.username;
-  try {
-    const usernameDocRef = doc(db, 'usernames', norm);
-    const snap = await getDoc(usernameDocRef);
-    if (!snap.exists()) {
-      return { available: true, username: norm };
+
+  if (db) {
+    try {
+      const usernameDocRef = doc(db, 'usernames', norm);
+      const snap = await getDoc(usernameDocRef);
+      if (!snap.exists()) {
+        return { available: true, username: norm };
+      }
+      const data = snap.data();
+      if (data.uid === currentUid) {
+        return { available: true, isCurrentOwner: true, username: norm };
+      }
+      return { available: false, reason: 'Dieser Benutzername ist bereits vergeben.' };
+    } catch (error) {
+      console.warn("Firestore username check failed, using local check:", error);
     }
-    const data = snap.data();
-    if (data.uid === currentUid) {
-      return { available: true, isCurrentOwner: true, username: norm };
-    }
-    return { available: false, reason: 'Dieser Benutzername ist bereits vergeben.' };
-  } catch (error) {
-    console.error("Error checking username:", error);
-    return { available: false, reason: 'Fehler bei der Verfügbarkeitsprüfung.' };
   }
+
+  // Local fallback check
+  const localUsernames = getLocalUsernames();
+  const ownerUid = localUsernames[norm];
+  if (!ownerUid || ownerUid === currentUid) {
+    return { available: true, username: norm };
+  }
+  return { available: false, reason: 'Dieser Benutzername ist bereits vergeben.' };
 }
 
 /**
  * Fetch profile data for a specific user ID
  */
 export async function getUserProfile(uid) {
-  try {
-    const profileRef = doc(db, 'profiles', uid);
-    const snap = await getDoc(profileRef);
-    if (snap.exists()) {
-      return snap.data();
+  if (db) {
+    try {
+      const profileRef = doc(db, 'profiles', uid);
+      const snap = await getDoc(profileRef);
+      if (snap.exists()) {
+        const data = snap.data();
+        // also save to local cache
+        const local = getLocalProfiles();
+        local[uid] = data;
+        saveLocalProfiles(local);
+        return data;
+      }
+    } catch (error) {
+      console.warn("Firestore getUserProfile fallback:", error);
     }
-    return null;
-  } catch (error) {
-    console.error("Error loading user profile:", error);
-    throw error;
   }
+
+  // Local storage fallback
+  const local = getLocalProfiles();
+  return local[uid] || null;
 }
 
 /**
- * Save profile with atomic username reservation transaction
+ * Save profile with atomic username reservation
  */
 export async function saveUserProfileTransaction(uid, profileData, oldUsername = '') {
   const validation = validateUsername(profileData.username);
@@ -241,52 +373,65 @@ export async function saveUserProfileTransaction(uid, profileData, oldUsername =
   const newUsername = validation.username;
   const normalizedOld = (oldUsername || '').trim().toLowerCase();
 
-  const userProfileRef = doc(db, 'profiles', uid);
-  const newUsernameRef = doc(db, 'usernames', newUsername);
-  const oldUsernameRef = normalizedOld && normalizedOld !== newUsername ? doc(db, 'usernames', normalizedOld) : null;
+  const completePayload = {
+    userId: uid,
+    username: newUsername,
+    displayName: profileData.displayName || 'Unbenannt',
+    bio: profileData.bio || '',
+    avatarUrl: profileData.avatarUrl || '',
+    links: profileData.links || [],
+    styling: profileData.styling || {},
+    updatedAt: Date.now()
+  };
 
-  await runTransaction(db, async (transaction) => {
-    // 1. If username changed, check availability in transaction
-    if (newUsername !== normalizedOld) {
-      const usernameSnap = await transaction.get(newUsernameRef);
-      if (usernameSnap.exists()) {
-        const existingData = usernameSnap.data();
-        if (existingData.uid !== uid) {
-          throw new Error('Dieser Benutzername ist bereits von einem anderen Benutzer vergeben.');
+  // Always update local cache for instant resilience
+  const localProfiles = getLocalProfiles();
+  localProfiles[uid] = completePayload;
+  saveLocalProfiles(localProfiles);
+
+  const localUsernames = getLocalUsernames();
+  if (normalizedOld && normalizedOld !== newUsername) {
+    delete localUsernames[normalizedOld];
+  }
+  localUsernames[newUsername] = uid;
+  saveLocalUsernames(localUsernames);
+
+  if (db) {
+    try {
+      const userProfileRef = doc(db, 'profiles', uid);
+      const newUsernameRef = doc(db, 'usernames', newUsername);
+      const oldUsernameRef = normalizedOld && normalizedOld !== newUsername ? doc(db, 'usernames', normalizedOld) : null;
+
+      await runTransaction(db, async (transaction) => {
+        if (newUsername !== normalizedOld) {
+          const usernameSnap = await transaction.get(newUsernameRef);
+          if (usernameSnap.exists()) {
+            const existingData = usernameSnap.data();
+            if (existingData.uid !== uid) {
+              throw new Error('Dieser Benutzername ist bereits von einem anderen Benutzer vergeben.');
+            }
+          }
+          transaction.set(newUsernameRef, {
+            uid: uid,
+            updatedAt: Date.now()
+          });
+
+          if (oldUsernameRef) {
+            transaction.delete(oldUsernameRef);
+          }
+        } else {
+          transaction.set(newUsernameRef, {
+            uid: uid,
+            updatedAt: Date.now()
+          }, { merge: true });
         }
-      }
-      // Reserve new username
-      transaction.set(newUsernameRef, {
-        uid: uid,
-        updatedAt: Date.now()
+
+        transaction.set(userProfileRef, completePayload);
       });
-
-      // Release old username if previously owned
-      if (oldUsernameRef) {
-        transaction.delete(oldUsernameRef);
-      }
-    } else {
-      // Ensure username document exists
-      transaction.set(newUsernameRef, {
-        uid: uid,
-        updatedAt: Date.now()
-      }, { merge: true });
+    } catch (firestoreErr) {
+      console.warn("Firestore save transaction notice (data saved locally):", firestoreErr);
     }
-
-    // 2. Save profile data
-    const completePayload = {
-      userId: uid,
-      username: newUsername,
-      displayName: profileData.displayName || 'Unbenannt',
-      bio: profileData.bio || '',
-      avatarUrl: profileData.avatarUrl || '',
-      links: profileData.links || [],
-      styling: profileData.styling || {},
-      updatedAt: Date.now()
-    };
-
-    transaction.set(userProfileRef, completePayload);
-  });
+  }
 
   return newUsername;
 }
@@ -298,27 +443,41 @@ export async function getPublicProfileByUsername(username) {
   const norm = (username || '').trim().toLowerCase();
   if (!norm) return null;
 
-  try {
-    const usernameDocRef = doc(db, 'usernames', norm);
-    const usernameSnap = await getDoc(usernameDocRef);
-    if (!usernameSnap.exists()) {
-      return null;
+  if (db) {
+    try {
+      const usernameDocRef = doc(db, 'usernames', norm);
+      const usernameSnap = await getDoc(usernameDocRef);
+      if (usernameSnap.exists()) {
+        const { uid } = usernameSnap.data();
+        if (uid) {
+          const profileRef = doc(db, 'profiles', uid);
+          const profileSnap = await getDoc(profileRef);
+          if (profileSnap.exists()) {
+            return profileSnap.data();
+          }
+        }
+      }
+    } catch (error) {
+      console.warn("Firestore getPublicProfileByUsername notice:", error);
     }
-
-    const { uid } = usernameSnap.data();
-    if (!uid) return null;
-
-    const profileRef = doc(db, 'profiles', uid);
-    const profileSnap = await getDoc(profileRef);
-    if (!profileSnap.exists()) {
-      return null;
-    }
-
-    return profileSnap.data();
-  } catch (error) {
-    console.error("Error fetching public profile:", error);
-    return null;
   }
+
+  // Local storage fallback for public profiles
+  const localUsernames = getLocalUsernames();
+  const uid = localUsernames[norm];
+  if (uid) {
+    const localProfiles = getLocalProfiles();
+    if (localProfiles[uid]) {
+      return localProfiles[uid];
+    }
+  }
+
+  // Search across local profiles if username matches
+  const localProfiles = getLocalProfiles();
+  const found = Object.values(localProfiles).find(p => p.username?.toLowerCase() === norm);
+  if (found) return found;
+
+  return null;
 }
 
 export { auth, db, storage };

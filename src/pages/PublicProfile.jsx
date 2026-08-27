@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { getPublicProfileByUsername } from '../firebase';
-import { FONT_OPTIONS } from '../constants';
-import { ExternalLink, Sparkles, Share2, Check, AlertCircle, Home } from 'lucide-react';
+import { FONT_OPTIONS, DISCORD_SUPPORT_URL } from '../constants';
+import { ExternalLink, Sparkles, Share2, Check, AlertCircle, Home, QrCode, MessageSquare } from 'lucide-react';
 import { LinkIcon } from '../components/LinkIcon';
 import { Logo } from '../components/Logo';
+import { applyCustomFont, getFontFamilyString, computeButtonStyle } from '../utils/fontLoader';
+import { QrCodeModal } from '../components/QrCodeModal';
 
 export function PublicProfile() {
   const { username } = useParams();
@@ -12,6 +14,7 @@ export function PublicProfile() {
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [showQrModal, setShowQrModal] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -35,8 +38,12 @@ export function PublicProfile() {
           setProfile(data);
           setNotFound(false);
 
+          if (data.styling?.customFont) {
+            applyCustomFont(data.styling.customFont);
+          }
+
           // Dynamic SEO meta tags and page title
-          const pageTitle = `${data.displayName || username} (@${data.username}) – Links`;
+          const pageTitle = `${data.displayName || username} (@${data.username}) – Linkspace`;
           document.title = pageTitle;
 
           // Update description meta tag
@@ -111,7 +118,8 @@ export function PublicProfile() {
 
   const styling = profile.styling || {};
   const activeLinks = (profile.links || []).filter((l) => l.active !== false);
-  const selectedFont = FONT_OPTIONS.find((f) => f.id === styling.font) || FONT_OPTIONS[0];
+  const activeFontFamily = getFontFamilyString(styling, FONT_OPTIONS);
+  const { style: computedBtnStyle, hoverClass } = computeButtonStyle(styling, FONT_OPTIONS);
 
   // Derive background style
   let bgStyle = {};
@@ -131,13 +139,6 @@ export function PublicProfile() {
     };
   }
 
-  const btnStyle = {
-    backgroundColor: styling.button || '#ffffff',
-    color: styling.buttonText || '#000000',
-    borderRadius: `${styling.radius ?? 12}px`,
-    fontFamily: selectedFont.family
-  };
-
   const overlayOpacity = (styling.backgroundOverlay ?? 35) / 100;
   const blurAmount = styling.backgroundBlur ?? 0;
 
@@ -147,7 +148,7 @@ export function PublicProfile() {
       id="public-profile-view"
       style={{
         ...bgStyle,
-        fontFamily: selectedFont.family
+        fontFamily: activeFontFamily
       }}
     >
       {/* Background image layer with blur and scale */}
@@ -176,18 +177,28 @@ export function PublicProfile() {
       <div className="public-top-nav">
         <button
           type="button"
+          className="btn-share-public mr-2"
+          onClick={() => setShowQrModal(true)}
+          title="QR-Code anzeigen"
+        >
+          <QrCode size={13} />
+          <span>QR</span>
+        </button>
+
+        <button
+          type="button"
           className="btn-share-public"
           onClick={handleShare}
-          title="Profil teilen"
+          title="Profil teilen oder Link kopieren"
         >
-          {copied ? <Check size={14} /> : <Share2 size={14} />}
-          <span>{copied ? 'Kopiert' : 'Teilen'}</span>
+          {copied ? <Check size={14} className="text-emerald-400" /> : <Share2 size={14} />}
+          <span>{copied ? 'Kopiert!' : 'Teilen'}</span>
         </button>
       </div>
 
-      <main className="public-profile-container">
-        {/* Profile Header */}
-        <header className="public-profile-header">
+      <div className="public-profile-container" id="public-profile-content">
+        {/* Avatar, Display Name, Bio */}
+        <div className="public-profile-header">
           <div className="public-avatar-wrapper">
             {profile.avatarUrl ? (
               <img
@@ -202,55 +213,83 @@ export function PublicProfile() {
             )}
           </div>
 
-          <h1 className="public-display-name">
+          <h1 className="public-profile-name" style={{ fontFamily: activeFontFamily }}>
             {profile.displayName || username}
           </h1>
 
-          <p className="public-username-tag">@{profile.username}</p>
+          <p className="public-profile-handle">@{profile.username}</p>
 
           {profile.bio && (
-            <p className="public-bio-text">{profile.bio}</p>
+            <p className="public-profile-bio">{profile.bio}</p>
           )}
-        </header>
+        </div>
 
         {/* Links List */}
-        <section className="public-links-container">
-          {activeLinks.map((link) => {
-            const showIcon = link.icon !== 'none';
-            return (
-              <a
-                key={link.id}
-                href={link.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className={`public-link-button ${showIcon ? 'has-icon' : ''}`}
-                style={btnStyle}
-              >
-                {showIcon && (
-                  <div className="public-btn-icon-leading">
-                    <LinkIcon
-                      link={link}
-                      userAvatarUrl={profile.avatarUrl}
-                      userDisplayName={profile.displayName}
-                      size={18}
-                    />
+        <div className="public-links-list">
+          {activeLinks.length === 0 ? (
+            <div className="public-empty-notice">
+              <span>Noch keine Links hinterlegt.</span>
+            </div>
+          ) : (
+            activeLinks.map((link) => {
+              const showIcon = link.icon !== 'none';
+              return (
+                <a
+                  key={link.id}
+                  href={link.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={`public-link-btn ${showIcon ? 'has-icon' : ''} ${hoverClass}`}
+                  style={computedBtnStyle}
+                >
+                  {showIcon && (
+                    <div className="public-btn-icon-leading">
+                      <LinkIcon
+                        link={link}
+                        userAvatarUrl={profile.avatarUrl}
+                        userDisplayName={profile.displayName}
+                        size={20}
+                      />
+                    </div>
+                  )}
+                  <span className="public-btn-label">{link.title}</span>
+                  <div className="public-btn-icon-trailing">
+                    <ExternalLink size={16} />
                   </div>
-                )}
-                <span className="public-link-title">{link.title}</span>
-                <ExternalLink size={15} className="public-link-icon" />
-              </a>
-            );
-          })}
-        </section>
+                </a>
+              );
+            })
+          )}
+        </div>
 
-        {/* Footer */}
+        {/* Public Footer */}
         <footer className="public-footer">
-          <Link to="/" className="public-footer-badge">
-            <Logo size={14} className="footer-logo-mini" />
-            <span>Erstelle deine eigene Seite auf <strong>Linkspace</strong></span>
+          <Link to="/" className="public-footer-brand">
+            <Logo size={18} />
+            <span>Erstelle dein eigenes <strong>Linkspace</strong></span>
           </Link>
+
+          <a
+            href={DISCORD_SUPPORT_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="public-discord-support-link"
+            title="Discord Support Community"
+          >
+            <MessageSquare size={13} className="text-indigo-400" />
+            <span>Discord Community & Support</span>
+          </a>
         </footer>
-      </main>
+      </div>
+
+      {showQrModal && (
+        <QrCodeModal
+          username={profile.username}
+          displayName={profile.displayName}
+          avatarUrl={profile.avatarUrl}
+          onClose={() => setShowQrModal(false)}
+        />
+      )}
     </div>
   );
 }

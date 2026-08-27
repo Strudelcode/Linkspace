@@ -55,7 +55,7 @@ export function AuthModal({ onAuthSuccess }) {
 
   const handleGuestLogin = () => {
     setError('');
-    loginAsGuest('Mein Linkspacee', 'creator');
+    loginAsGuest('Mein Linkspace', 'creator');
     if (onAuthSuccess) onAuthSuccess();
   };
 
@@ -67,7 +67,7 @@ export function AuthModal({ onAuthSuccess }) {
           <div className="auth-logo-badge" id="auth-brand-logo-badge">
             <Logo size={46} className="auth-logo-img rounded-xl" />
           </div>
-          <h2>{isRegister ? 'Account erstellen' : 'Willkommen bei Linkspacee'}</h2>
+          <h2>{isRegister ? 'Account erstellen' : 'Willkommen bei Linkspace'}</h2>
           <p className="auth-sub">
             {isRegister
               ? 'Erstelle deine persönliche Link-in-Bio Seite in Sekunden.'

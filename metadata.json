@@ -1,6 +1,6 @@
 {
   "name": "Linkspace",
-  "description": "Linkspacee – customizable link-in-bio page builder and profile viewer with real-time preview, custom theming, and link management.",
+  "description": "Linkspace – Anpassbare Link-in-Bio Seiten mit Live-Vorschau, Themes, Icons, SEO-Anpassung und Benutzer-Authentifizierung.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

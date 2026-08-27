@@ -1,7 +1,7 @@
 import React from 'react';
 import appIconSvg from '../assets/app_icon/app_icon.svg';
 
-export function Logo({ size = 26, className = '', alt = 'Linkspacee Logo' }) {
+export function Logo({ size = 26, className = '', alt = 'Linkspace Logo' }) {
   return (
     <img
       src={appIconSvg}

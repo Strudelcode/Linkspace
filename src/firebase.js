@@ -64,8 +64,8 @@ const envConfig = {
 };
 
 const activeConfig = {
-  ...projectDefaultConfig,
   ...firebaseConfig,
+  ...projectDefaultConfig,
   ...Object.fromEntries(Object.entries(envConfig).filter(([_, v]) => v != null && v !== ''))
 };
 
@@ -73,7 +73,8 @@ try {
   if (activeConfig && activeConfig.apiKey) {
     app = initializeApp(activeConfig);
     auth = getAuth(app);
-    db = activeConfig.firestoreDatabaseId && activeConfig.firestoreDatabaseId !== '(default)'
+    // Connect to standard default firestore database
+    db = (activeConfig.firestoreDatabaseId && activeConfig.firestoreDatabaseId !== '(default)' && activeConfig.projectId === 'gen-lang-client-0499920163')
       ? getFirestore(app, activeConfig.firestoreDatabaseId)
       : getFirestore(app);
     try {
@@ -403,6 +404,16 @@ export function validateUsername(username) {
 }
 
 /**
+ * Helper to ensure Firestore async operations never hang indefinitely (max 2.5s)
+ */
+function withTimeout(promise, ms = 2500, fallbackMessage = 'Timeout') {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => setTimeout(() => reject(new Error(fallbackMessage)), ms))
+  ]);
+}
+
+/**
  * Check if a username is available in Firestore (with local fallback)
  */
 export async function checkUsernameAvailability(username, currentUid) {
@@ -413,18 +424,25 @@ export async function checkUsernameAvailability(username, currentUid) {
 
   if (db) {
     try {
-      const usernameDocRef = doc(db, 'usernames', norm);
-      const snap = await getDoc(usernameDocRef);
-      if (!snap.exists()) {
-        return { available: true, username: norm };
-      }
-      const data = snap.data();
-      if (data.uid === currentUid) {
-        return { available: true, isCurrentOwner: true, username: norm };
-      }
-      return { available: false, reason: 'Dieser Benutzername ist bereits vergeben.' };
+      const checkPromise = (async () => {
+        const usernameDocRef = doc(db, 'usernames', norm);
+        const snap = await getDoc(usernameDocRef);
+        if (!snap.exists()) {
+          return { available: true, username: norm };
+        }
+        const data = snap.data();
+        if (data.uid === currentUid) {
+          return { available: true, isCurrentOwner: true, username: norm };
+        }
+        return { available: false, reason: 'Dieser Benutzername ist bereits vergeben.' };
+      })();
+
+      return await withTimeout(checkPromise, 2500, 'Username check timeout');
     } catch (error) {
-      console.warn("Firestore username check failed, using local check:", error);
+      if (error?.message?.includes('bereits vergeben')) {
+        return { available: false, reason: 'Dieser Benutzername ist bereits vergeben.' };
+      }
+      console.warn("Firestore username check timed out/failed, using local check:", error);
     }
   }
 
@@ -438,23 +456,28 @@ export async function checkUsernameAvailability(username, currentUid) {
 }
 
 /**
- * Fetch profile data for a specific user ID
+ * Fetch profile data for a specific user ID with instant local cache + fast firestore sync
  */
 export async function getUserProfile(uid) {
-  if (db) {
+  if (db && !uid.startsWith('guest_')) {
     try {
-      const profileRef = doc(db, 'profiles', uid);
-      const snap = await getDoc(profileRef);
-      if (snap.exists()) {
-        const data = snap.data();
-        // also save to local cache
-        const local = getLocalProfiles();
-        local[uid] = data;
-        saveLocalProfiles(local);
-        return data;
-      }
+      const fetchPromise = (async () => {
+        const profileRef = doc(db, 'profiles', uid);
+        const snap = await getDoc(profileRef);
+        if (snap.exists()) {
+          const data = snap.data();
+          const local = getLocalProfiles();
+          local[uid] = data;
+          saveLocalProfiles(local);
+          return data;
+        }
+        return null;
+      })();
+
+      const remoteData = await withTimeout(fetchPromise, 2500, 'Firestore profile load timeout');
+      if (remoteData) return remoteData;
     } catch (error) {
-      console.warn("Firestore getUserProfile fallback:", error);
+      console.warn("Firestore getUserProfile timeout or offline fallback:", error);
     }
   }
 
@@ -464,7 +487,7 @@ export async function getUserProfile(uid) {
 }
 
 /**
- * Save profile with atomic username reservation
+ * Save profile with atomic username reservation and instant local write
  */
 export async function saveUserProfileTransaction(uid, profileData, oldUsername = '') {
   const validation = validateUsername(profileData.username);
@@ -498,13 +521,18 @@ export async function saveUserProfileTransaction(uid, profileData, oldUsername =
   localUsernames[newUsername] = uid;
   saveLocalUsernames(localUsernames);
 
+  // If user is guest/anonymous locally, save is complete!
+  if (uid.startsWith('guest_')) {
+    return newUsername;
+  }
+
   if (db) {
     try {
       const userProfileRef = doc(db, 'profiles', uid);
       const newUsernameRef = doc(db, 'usernames', newUsername);
       const oldUsernameRef = normalizedOld && normalizedOld !== newUsername ? doc(db, 'usernames', normalizedOld) : null;
 
-      await runTransaction(db, async (transaction) => {
+      const txPromise = runTransaction(db, async (transaction) => {
         if (newUsername !== normalizedOld) {
           const usernameSnap = await transaction.get(newUsernameRef);
           if (usernameSnap.exists()) {
@@ -530,6 +558,8 @@ export async function saveUserProfileTransaction(uid, profileData, oldUsername =
 
         transaction.set(userProfileRef, completePayload);
       });
+
+      await withTimeout(txPromise, 3500, 'Firestore save transaction timeout');
     } catch (firestoreErr) {
       if (firestoreErr?.message?.includes('bereits von einem anderen Benutzer vergeben')) {
         throw firestoreErr;
@@ -542,7 +572,7 @@ export async function saveUserProfileTransaction(uid, profileData, oldUsername =
 }
 
 /**
- * Fetch public profile by username
+ * Fetch public profile by username with rapid timeout & local fallback
  */
 export async function getPublicProfileByUsername(username) {
   const norm = (username || '').trim().toLowerCase();
@@ -550,18 +580,24 @@ export async function getPublicProfileByUsername(username) {
 
   if (db) {
     try {
-      const usernameDocRef = doc(db, 'usernames', norm);
-      const usernameSnap = await getDoc(usernameDocRef);
-      if (usernameSnap.exists()) {
-        const { uid } = usernameSnap.data();
-        if (uid) {
-          const profileRef = doc(db, 'profiles', uid);
-          const profileSnap = await getDoc(profileRef);
-          if (profileSnap.exists()) {
-            return profileSnap.data();
+      const fetchPublicPromise = (async () => {
+        const usernameDocRef = doc(db, 'usernames', norm);
+        const usernameSnap = await getDoc(usernameDocRef);
+        if (usernameSnap.exists()) {
+          const { uid } = usernameSnap.data();
+          if (uid) {
+            const profileRef = doc(db, 'profiles', uid);
+            const profileSnap = await getDoc(profileRef);
+            if (profileSnap.exists()) {
+              return profileSnap.data();
+            }
           }
         }
-      }
+        return null;
+      })();
+
+      const result = await withTimeout(fetchPublicPromise, 2500, 'Public profile timeout');
+      if (result) return result;
     } catch (error) {
       console.warn("Firestore getPublicProfileByUsername notice:", error);
     }

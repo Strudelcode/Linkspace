@@ -43,7 +43,7 @@ export function PublicProfile() {
           }
 
           // Dynamic SEO meta tags and page title
-          const pageTitle = `${data.displayName || username} (@${data.username}) – Linkspacee`;
+          const pageTitle = `${data.displayName || username} (@${data.username}) – Linkspace`;
           document.title = pageTitle;
 
           // Update description meta tag
@@ -53,7 +53,7 @@ export function PublicProfile() {
             metaDesc.name = 'description';
             document.head.appendChild(metaDesc);
           }
-          metaDesc.content = data.bio || `Alle wichtigen Links und Profile von ${data.displayName || username} auf Linkspacee.`;
+          metaDesc.content = data.bio || `Alle wichtigen Links und Profile von ${data.displayName || username} auf Linkspace.`;
         }
       } catch (err) {
         console.error("Error loading public profile:", err);
@@ -67,7 +67,7 @@ export function PublicProfile() {
 
     return () => {
       isMounted = false;
-      document.title = 'Linkspacee – Minimalist Link-in-Bio';
+      document.title = 'Linkspace';
     };
   }, [username]);
 
@@ -266,7 +266,7 @@ export function PublicProfile() {
         <footer className="public-footer">
           <Link to="/" className="public-footer-brand">
             <Logo size={18} />
-            <span>Erstelle dein eigenes <strong>Linkspacee</strong></span>
+            <span>Erstelle dein eigenes <strong>Linkspace</strong></span>
           </Link>
 
           <a

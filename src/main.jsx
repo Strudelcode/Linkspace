@@ -107,11 +107,7 @@ function Dashboard() {
   };
 
   const handleSaveClick = () => {
-    // If user is guest/anonymous, prompt them with the guest-save modal to permanently secure their account
-    if (user && (user.isGuest || user.isAnonymous)) {
-      setShowGuestSaveModal(true);
-      return;
-    }
+    // Save profile changes immediately for all users (guests persist locally)
     executeSave();
   };
 
@@ -142,7 +138,7 @@ function Dashboard() {
     return (
       <div className="center-loader" id="app-loading-spinner">
         <Loader2 size={32} className="spin text-primary" />
-        <span className="text-muted text-sm mt-3">Linkspacee wird initialisiert …</span>
+        <span className="text-muted text-sm mt-3">Linkspace wird initialisiert …</span>
       </div>
     );
   }
@@ -270,7 +266,7 @@ class ErrorBoundary extends React.Component {
   }
 
   componentDidCatch(error, errorInfo) {
-    console.error("Linkspacee App Error:", error, errorInfo);
+    console.error("Linkspace App Error:", error, errorInfo);
   }
 
   handleReset = () => {

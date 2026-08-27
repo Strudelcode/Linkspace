@@ -509,7 +509,7 @@ export async function saveUserProfileTransaction(uid, profileData, oldUsername =
           const usernameSnap = await transaction.get(newUsernameRef);
           if (usernameSnap.exists()) {
             const existingData = usernameSnap.data();
-            if (existingData.uid !== uid) {
+            if (existingData.uid && existingData.uid !== uid) {
               throw new Error('Dieser Benutzername ist bereits von einem anderen Benutzer vergeben.');
             }
           }
@@ -531,6 +531,9 @@ export async function saveUserProfileTransaction(uid, profileData, oldUsername =
         transaction.set(userProfileRef, completePayload);
       });
     } catch (firestoreErr) {
+      if (firestoreErr?.message?.includes('bereits von einem anderen Benutzer vergeben')) {
+        throw firestoreErr;
+      }
       console.warn("Firestore save transaction notice (data saved locally):", firestoreErr);
     }
   }

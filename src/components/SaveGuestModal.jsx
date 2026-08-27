@@ -96,7 +96,7 @@ export function SaveGuestModal({ profile, onSaveDirectlyAsGuest, onAuthenticated
           </div>
 
           {/* SSO Buttons */}
-          <div className="space-y-2 mb-3">
+          <div className="auth-sso-group mb-3">
             <button
               type="button"
               className="btn-google w-full"

@@ -76,7 +76,7 @@ export function AuthModal({ onAuthSuccess }) {
         </div>
 
         {/* OAuth SSO Buttons Container */}
-        <div className="space-y-2 mb-2">
+        <div className="auth-sso-group">
           {/* Google SSO Button */}
           <button
             type="button"

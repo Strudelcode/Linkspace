@@ -3,6 +3,8 @@ import { useParams, Link } from 'react-router-dom';
 import { getPublicProfileByUsername } from '../firebase';
 import { FONT_OPTIONS } from '../constants';
 import { ExternalLink, Sparkles, Share2, Check, AlertCircle, Home } from 'lucide-react';
+import { LinkIcon } from '../components/LinkIcon';
+import { Logo } from '../components/Logo';
 
 export function PublicProfile() {
   const { username } = useParams();
@@ -94,7 +96,7 @@ export function PublicProfile() {
           <div className="brand-badge-404">404</div>
           <h1>Profil nicht gefunden</h1>
           <p>
-            Der Benutzer <strong>@{username}</strong> existiert noch nicht oder hat sein Profil noch nicht veröffentlicht.
+            Der Benutzer <strong>@{username}</strong> existiert noch nicht oder hat sein Profil noch nicht freigeschaltet.
           </p>
           <div className="public-404-actions">
             <Link to="/" className="btn btn-primary">
@@ -121,10 +123,7 @@ export function PublicProfile() {
     };
   } else if (styling.backgroundType === 'image' && styling.backgroundImage) {
     bgStyle = {
-      backgroundImage: `url(${styling.backgroundImage})`,
-      backgroundSize: 'cover',
-      backgroundPosition: 'center',
-      backgroundAttachment: 'fixed'
+      backgroundColor: '#090a0f'
     };
   } else {
     bgStyle = {
@@ -139,6 +138,9 @@ export function PublicProfile() {
     fontFamily: selectedFont.family
   };
 
+  const overlayOpacity = (styling.backgroundOverlay ?? 35) / 100;
+  const blurAmount = styling.backgroundBlur ?? 0;
+
   return (
     <div
       className="public-page-wrapper"
@@ -148,6 +150,28 @@ export function PublicProfile() {
         fontFamily: selectedFont.family
       }}
     >
+      {/* Background image layer with blur and scale */}
+      {styling.backgroundType === 'image' && styling.backgroundImage && (
+        <div
+          className="public-bg-image-layer"
+          style={{
+            backgroundImage: `url(${styling.backgroundImage})`,
+            filter: blurAmount > 0 ? `blur(${blurAmount}px)` : 'none',
+            transform: blurAmount > 0 ? 'scale(1.06)' : 'none'
+          }}
+        />
+      )}
+
+      {/* Dark overlay for contrast */}
+      {styling.backgroundType === 'image' && styling.backgroundImage && (
+        <div
+          className="public-bg-overlay"
+          style={{
+            backgroundColor: `rgba(0, 0, 0, ${overlayOpacity})`
+          }}
+        />
+      )}
+
       {/* Top share bar */}
       <div className="public-top-nav">
         <button
@@ -191,25 +215,39 @@ export function PublicProfile() {
 
         {/* Links List */}
         <section className="public-links-container">
-          {activeLinks.map((link) => (
-            <a
-              key={link.id}
-              href={link.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="public-link-button"
-              style={btnStyle}
-            >
-              <span className="public-link-title">{link.title}</span>
-              <ExternalLink size={15} className="public-link-icon" />
-            </a>
-          ))}
+          {activeLinks.map((link) => {
+            const showIcon = link.icon !== 'none';
+            return (
+              <a
+                key={link.id}
+                href={link.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={`public-link-button ${showIcon ? 'has-icon' : ''}`}
+                style={btnStyle}
+              >
+                {showIcon && (
+                  <div className="public-btn-icon-leading">
+                    <LinkIcon
+                      link={link}
+                      userAvatarUrl={profile.avatarUrl}
+                      userDisplayName={profile.displayName}
+                      size={18}
+                    />
+                  </div>
+                )}
+                <span className="public-link-title">{link.title}</span>
+                <ExternalLink size={15} className="public-link-icon" />
+              </a>
+            );
+          })}
         </section>
 
         {/* Footer */}
         <footer className="public-footer">
           <Link to="/" className="public-footer-badge">
-            <span className="public-footer-dot" /> Erstelle deine eigene Seite auf <strong>Linkspace</strong>
+            <Logo size={14} className="footer-logo-mini" />
+            <span>Erstelle deine eigene Seite auf <strong>Linkspace</strong></span>
           </Link>
         </footer>
       </main>

@@ -9,12 +9,26 @@ import {
   Eye,
   EyeOff,
   ExternalLink,
-  AlertCircle
+  AlertCircle,
+  Sparkles,
+  Smile,
+  Edit2
 } from 'lucide-react';
+import { LinkIcon, detectIconFromUrl } from './LinkIcon';
+import { IconPickerModal } from './IconPickerModal';
 
-export function LinksEditor({ links, setLinks }) {
+export function LinksEditor({
+  links,
+  setLinks,
+  userAvatarUrl = '',
+  userDisplayName = '',
+  uid = ''
+}) {
   const [draggedIndex, setDraggedIndex] = useState(null);
   const [dragOverIndex, setDragOverIndex] = useState(null);
+  const [editingIconLinkId, setEditingIconLinkId] = useState(null);
+
+  const activeModalLink = links.find((l) => l.id === editingIconLinkId);
 
   const addLink = () => {
     const newId = 'link_' + Date.now().toString(36) + Math.random().toString(36).substring(2, 6);
@@ -22,7 +36,9 @@ export function LinksEditor({ links, setLinks }) {
       id: newId,
       title: 'Neuer Link',
       url: 'https://',
-      active: true
+      active: true,
+      iconType: 'standard',
+      icon: 'globe'
     };
     setLinks([...links, newLink]);
   };
@@ -32,14 +48,20 @@ export function LinksEditor({ links, setLinks }) {
       links.map((link) => {
         if (link.id !== id) return link;
 
-        let processedValue = value;
-        // Auto-fix URL on blur or if needed
-        if (field === 'url' && value.trim() && !value.startsWith('http://') && !value.startsWith('https://') && !value.startsWith('mailto:') && !value.startsWith('tel:')) {
-          if (value.includes('.') && !value.startsWith('//')) {
-            // keep what they type, auto formatting will trigger if requested
+        const updated = { ...link, [field]: value };
+
+        // If user changed URL and hasn't explicitly set a custom/avatar icon or specific icon,
+        // auto-detect matching standard platform icon!
+        if (field === 'url') {
+          if (!link.iconType || link.iconType === 'standard') {
+            const detected = detectIconFromUrl(value);
+            if (detected) {
+              updated.icon = detected;
+            }
           }
         }
-        return { ...link, [field]: processedValue };
+
+        return updated;
       })
     );
   };
@@ -49,6 +71,13 @@ export function LinksEditor({ links, setLinks }) {
     if (trimmed && !/^https?:\/\//i.test(trimmed) && !/^mailto:/i.test(trimmed) && !/^tel:/i.test(trimmed)) {
       updateLink(id, 'url', 'https://' + trimmed);
     }
+  };
+
+  const handleSelectIconForLink = (iconConfig) => {
+    if (!editingIconLinkId) return;
+    setLinks(
+      links.map((l) => (l.id === editingIconLinkId ? { ...l, ...iconConfig } : l))
+    );
   };
 
   const removeLink = (id) => {
@@ -155,7 +184,7 @@ export function LinksEditor({ links, setLinks }) {
                   onDrop={(e) => handleDrop(e, index)}
                   onDragEnd={handleDragEnd}
                 >
-                  {/* Grip & Reorder */}
+                  {/* Drag Handle */}
                   <div
                     className="drag-handle"
                     title="Gedrückt halten zum Verschieben"
@@ -164,7 +193,28 @@ export function LinksEditor({ links, setLinks }) {
                     <GripVertical size={16} />
                   </div>
 
-                  {/* Link Details */}
+                  {/* Icon Selector Button */}
+                  <button
+                    type="button"
+                    className="link-icon-picker-btn"
+                    title="Icon oder Bild für diesen Link anpassen"
+                    onClick={() => setEditingIconLinkId(link.id)}
+                    id={`btn-edit-icon-${link.id}`}
+                  >
+                    <div className="link-icon-badge">
+                      <LinkIcon
+                        link={link}
+                        userAvatarUrl={userAvatarUrl}
+                        userDisplayName={userDisplayName}
+                        size={16}
+                      />
+                    </div>
+                    <span className="icon-edit-pencil">
+                      <Edit2 size={9} />
+                    </span>
+                  </button>
+
+                  {/* Link Details Fields */}
                   <div className="link-content-fields">
                     <div className="form-group-compact">
                       <input
@@ -212,7 +262,7 @@ export function LinksEditor({ links, setLinks }) {
                     </div>
                   </div>
 
-                  {/* Actions (Reorder buttons, active toggle, delete) */}
+                  {/* Action Controls */}
                   <div className="link-actions-group">
                     <div className="order-steppers">
                       <button
@@ -264,6 +314,19 @@ export function LinksEditor({ links, setLinks }) {
           </div>
         )}
       </div>
+
+      {/* Icon Picker Dialog Modal */}
+      {activeModalLink && (
+        <IconPickerModal
+          isOpen={!!activeModalLink}
+          onClose={() => setEditingIconLinkId(null)}
+          link={activeModalLink}
+          onSelectIcon={handleSelectIconForLink}
+          userAvatarUrl={userAvatarUrl}
+          userDisplayName={userDisplayName}
+          uid={uid}
+        />
+      )}
     </div>
   );
 }

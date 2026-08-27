@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { loginWithEmail, registerWithEmail, loginWithGoogle } from '../firebase';
 import { Loader2, AlertCircle, Sparkles, CheckCircle2, Lock, Mail, User } from 'lucide-react';
+import { Logo } from './Logo';
 
 export function AuthModal({ onAuthSuccess }) {
   const [isRegister, setIsRegister] = useState(false);
@@ -49,7 +50,9 @@ export function AuthModal({ onAuthSuccess }) {
     <div className="auth-fullscreen" id="auth-fullscreen-container">
       <div className="auth-card" id="auth-card-main">
         <div className="auth-header">
-          <div className="brand-badge">L</div>
+          <div className="auth-logo-badge">
+            <Logo size={42} />
+          </div>
           <h2>{isRegister ? 'Account erstellen' : 'Willkommen bei Linkspace'}</h2>
           <p className="auth-sub">
             {isRegister

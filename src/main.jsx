@@ -184,11 +184,15 @@ function Dashboard() {
           <LinksEditor
             links={profile.links || []}
             setLinks={handleLinksChange}
+            userAvatarUrl={profile.avatarUrl}
+            userDisplayName={profile.displayName}
+            uid={user.uid}
           />
 
           <DesignEditor
             styling={profile.styling || DEFAULT_PROFILE.styling}
             setStyling={handleStylingChange}
+            uid={user.uid}
           />
         </section>
 

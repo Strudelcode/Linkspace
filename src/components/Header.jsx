@@ -1,6 +1,7 @@
 import React from 'react';
 import { ExternalLink, Save, LogOut, Check, Loader2, Sparkles, User, AlertCircle } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { Logo } from './Logo';
 
 export function Header({
   profile,
@@ -17,8 +18,8 @@ export function Header({
   return (
     <header className="header" id="app-header">
       <div className="header-left">
-        <Link to="/" className="logo-brand">
-          <div className="logo-icon">L</div>
+        <Link to="/" className="logo-brand" id="header-logo-link">
+          <Logo size={26} />
           <span className="logo-text">Linkspace</span>
         </Link>
         {profile.username && (

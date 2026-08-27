@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { ExternalLink, Copy, Check, Share2, Sparkles } from 'lucide-react';
 import { FONT_OPTIONS } from '../constants';
+import { LinkIcon } from './LinkIcon';
+import { Logo } from './Logo';
 
 export function PhonePreview({ profile }) {
   const [copied, setCopied] = useState(false);
@@ -21,9 +23,7 @@ export function PhonePreview({ profile }) {
     };
   } else if (styling.backgroundType === 'image' && styling.backgroundImage) {
     bgStyle = {
-      backgroundImage: `url(${styling.backgroundImage})`,
-      backgroundSize: 'cover',
-      backgroundPosition: 'center'
+      backgroundColor: '#090a0f'
     };
   } else {
     bgStyle = {
@@ -47,6 +47,9 @@ export function PhonePreview({ profile }) {
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
+
+  const overlayOpacity = (styling.backgroundOverlay ?? 35) / 100;
+  const blurAmount = styling.backgroundBlur ?? 0;
 
   return (
     <div className="preview-container" id="phone-preview-wrapper">
@@ -78,9 +81,26 @@ export function PhonePreview({ profile }) {
             fontFamily: selectedFont.family
           }}
         >
-          {/* Overlay to ensure text readability if background image */}
+          {/* Background image layer with blur support */}
           {styling.backgroundType === 'image' && styling.backgroundImage && (
-            <div className="phone-bg-overlay" />
+            <div
+              className="phone-bg-image-layer"
+              style={{
+                backgroundImage: `url(${styling.backgroundImage})`,
+                filter: blurAmount > 0 ? `blur(${blurAmount}px)` : 'none',
+                transform: blurAmount > 0 ? 'scale(1.08)' : 'none'
+              }}
+            />
+          )}
+
+          {/* Overlay to ensure high text readability over background images */}
+          {styling.backgroundType === 'image' && styling.backgroundImage && (
+            <div
+              className="phone-bg-overlay"
+              style={{
+                backgroundColor: `rgba(0, 0, 0, ${overlayOpacity})`
+              }}
+            />
           )}
 
           <div className="phone-content-scrollable">
@@ -120,29 +140,43 @@ export function PhonePreview({ profile }) {
                   <span>Keine sichtbaren Links</span>
                 </div>
               ) : (
-                links.map((link) => (
-                  <a
-                    key={link.id}
-                    href={link.url || '#'}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="profile-link-btn"
-                    style={btnStyle}
-                    onClick={(e) => {
-                      if (!link.url || link.url === 'https://') e.preventDefault();
-                    }}
-                  >
-                    <span className="link-title-text">{link.title || 'Unbenannter Link'}</span>
-                    <ExternalLink size={14} className="link-arrow-icon" />
-                  </a>
-                ))
+                links.map((link) => {
+                  const showIcon = link.icon !== 'none';
+                  return (
+                    <a
+                      key={link.id}
+                      href={link.url || '#'}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={`profile-link-btn ${showIcon ? 'has-icon' : ''}`}
+                      style={btnStyle}
+                      onClick={(e) => {
+                        if (!link.url || link.url === 'https://') e.preventDefault();
+                      }}
+                    >
+                      {showIcon && (
+                        <div className="btn-icon-leading">
+                          <LinkIcon
+                            link={link}
+                            userAvatarUrl={profile.avatarUrl}
+                            userDisplayName={profile.displayName}
+                            size={16}
+                          />
+                        </div>
+                      )}
+                      <span className="link-title-text">{link.title || 'Unbenannter Link'}</span>
+                      <ExternalLink size={13} className="link-arrow-icon" />
+                    </a>
+                  );
+                })
               )}
             </div>
 
             {/* Footer Branding */}
             <div className="phone-footer-branding">
               <span className="brand-pill-mini">
-                <span className="brand-dot" /> Linkspace
+                <Logo size={14} className="brand-logo-mini" />
+                <span>Linkspace</span>
               </span>
             </div>
           </div>

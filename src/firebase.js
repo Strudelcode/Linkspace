@@ -136,9 +136,9 @@ function translateAuthError(code) {
 }
 
 /**
- * Avatar upload with Firebase Storage + base64 fallback
+ * Upload helper with Firebase Storage + base64 fallback
  */
-export async function uploadAvatar(file, uid) {
+export async function uploadImage(file, path) {
   if (!file) throw new Error("Keine Datei ausgewählt.");
   if (file.size > 5 * 1024 * 1024) {
     throw new Error("Das Bild darf maximal 5 MB groß sein.");
@@ -146,13 +146,12 @@ export async function uploadAvatar(file, uid) {
 
   try {
     const fileExt = file.name.split('.').pop() || 'jpg';
-    const storageRef = ref(storage, `avatars/${uid}/${Date.now()}.${fileExt}`);
+    const storageRef = ref(storage, `${path}/${Date.now()}.${fileExt}`);
     const snapshot = await uploadBytes(storageRef, file);
     const downloadUrl = await getDownloadURL(snapshot.ref);
     return downloadUrl;
   } catch (err) {
     console.warn("Storage upload failed, using local base64 fallback:", err);
-    // Fallback to data URL
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = () => resolve(reader.result);
@@ -160,6 +159,18 @@ export async function uploadAvatar(file, uid) {
       reader.readAsDataURL(file);
     });
   }
+}
+
+export async function uploadAvatar(file, uid) {
+  return uploadImage(file, `avatars/${uid}`);
+}
+
+export async function uploadBackgroundImage(file, uid) {
+  return uploadImage(file, `backgrounds/${uid}`);
+}
+
+export async function uploadLinkIcon(file, uid, linkId) {
+  return uploadImage(file, `link-icons/${uid}/${linkId}`);
 }
 
 /**

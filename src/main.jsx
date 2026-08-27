@@ -1,59 +1,221 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { createRoot } from 'react-dom/client';
-import { BrowserRouter, Routes, Route, useNavigate, useParams, Link } from 'react-router-dom';
-import { initializeApp } from 'firebase/app';
-import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut } from 'firebase/auth';
-import { getFirestore, doc, getDoc, setDoc, collection, query, where, getDocs } from 'firebase/firestore';
-import { Plus, Trash2, GripVertical, ExternalLink, LogOut, Save, Link2, Palette, UserRound } from 'lucide-react';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import {
+  subscribeToAuth,
+  logoutUser,
+  getUserProfile,
+  saveUserProfileTransaction
+} from './firebase';
+import { DEFAULT_PROFILE } from './constants';
+import { Header } from './components/Header';
+import { AuthModal } from './components/AuthModal';
+import { ProfileEditor } from './components/ProfileEditor';
+import { LinksEditor } from './components/LinksEditor';
+import { DesignEditor } from './components/DesignEditor';
+import { PhonePreview } from './components/PhonePreview';
+import { PublicProfile } from './pages/PublicProfile';
+import { Smartphone, Edit3, Loader2 } from 'lucide-react';
 import './styles.css';
 
-const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID,
-};
-const firebaseReady = Object.values(firebaseConfig).every(Boolean);
-const app = firebaseReady ? initializeApp(firebaseConfig) : null;
-const auth = app ? getAuth(app) : null;
-const db = app ? getFirestore(app) : null;
+function Dashboard() {
+  const [user, setUser] = useState(null);
+  const [authLoading, setAuthLoading] = useState(true);
 
-const starter = [{ id: crypto.randomUUID(), title: 'My website', url: 'https://example.com' }, { id: crypto.randomUUID(), title: 'Instagram', url: 'https://instagram.com' }];
-const defaults = { displayName: 'Your Name', bio: 'Creator · Designer · Developer', username: '', background: '#0b0d12', button: '#ffffff', buttonText: '#111318', font: 'Inter', radius: 16 };
+  // Profile data states
+  const [profile, setProfile] = useState(DEFAULT_PROFILE);
+  const [initialUsername, setInitialUsername] = useState('');
+  const [profileLoading, setProfileLoading] = useState(false);
 
-async function usernameAvailable(username, uid) {
-  const normalized = username.trim().toLowerCase();
-  if (!/^[a-z0-9_\.\-]{3,30}$/.test(normalized)) return false;
-  const snap = await getDoc(doc(db, 'usernames', normalized));
-  return !snap.exists() || snap.data().uid === uid;
+  // Save states
+  const [isSaving, setIsSaving] = useState(false);
+  const [isSaved, setIsSaved] = useState(false);
+  const [saveError, setSaveError] = useState('');
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+
+  // Mobile tab switch (editor vs live preview)
+  const [mobileTab, setMobileTab] = useState('editor');
+
+  // Track auth state
+  useEffect(() => {
+    const unsubscribe = subscribeToAuth(async (currentUser) => {
+      setUser(currentUser);
+      setAuthLoading(false);
+
+      if (currentUser) {
+        setProfileLoading(true);
+        try {
+          const remoteProfile = await getUserProfile(currentUser.uid);
+          if (remoteProfile) {
+            setProfile({
+              ...DEFAULT_PROFILE,
+              ...remoteProfile,
+              links: remoteProfile.links || DEFAULT_PROFILE.links,
+              styling: { ...DEFAULT_PROFILE.styling, ...(remoteProfile.styling || {}) }
+            });
+            setInitialUsername(remoteProfile.username || '');
+          } else {
+            // First time setup: seed with user's info
+            const generatedUsername = (currentUser.displayName || currentUser.email?.split('@')[0] || 'user')
+              .toLowerCase()
+              .replace(/[^a-z0-9_.-]/g, '')
+              .slice(0, 20);
+
+            const initial = {
+              ...DEFAULT_PROFILE,
+              displayName: currentUser.displayName || 'Mein Name',
+              username: generatedUsername,
+              avatarUrl: currentUser.photoURL || ''
+            };
+            setProfile(initial);
+            setInitialUsername('');
+          }
+        } catch (err) {
+          console.error("Error loading user profile:", err);
+        } finally {
+          setProfileLoading(false);
+        }
+      }
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  const handleSave = async () => {
+    if (!user) return;
+    setIsSaving(true);
+    setSaveError('');
+
+    try {
+      const savedUsername = await saveUserProfileTransaction(
+        user.uid,
+        profile,
+        initialUsername
+      );
+      setInitialUsername(savedUsername);
+      setIsSaved(true);
+      setHasUnsavedChanges(false);
+      setTimeout(() => setIsSaved(false), 2500);
+    } catch (err) {
+      console.error("Save error:", err);
+      setSaveError(err.message || 'Fehler beim Speichern.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleLinksChange = (newLinks) => {
+    setProfile((prev) => ({ ...prev, links: newLinks }));
+    setHasUnsavedChanges(true);
+  };
+
+  const handleStylingChange = (newStyling) => {
+    setProfile((prev) => ({
+      ...prev,
+      styling: typeof newStyling === 'function' ? newStyling(prev.styling) : newStyling
+    }));
+    setHasUnsavedChanges(true);
+  };
+
+  const handleProfileStateChange = (updater) => {
+    setProfile(updater);
+    setHasUnsavedChanges(true);
+  };
+
+  if (authLoading || (user && profileLoading)) {
+    return (
+      <div className="center-loader" id="app-loading-spinner">
+        <Loader2 size={32} className="spin text-primary" />
+        <span className="text-muted text-sm mt-3">Linkspace wird initialisiert …</span>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <AuthModal onAuthSuccess={() => {}} />;
+  }
+
+  return (
+    <div className="app-layout" id="dashboard-app-root">
+      <Header
+        profile={profile}
+        isSaving={isSaving}
+        isSaved={isSaved}
+        saveError={saveError}
+        hasUnsavedChanges={hasUnsavedChanges}
+        onSave={handleSave}
+        user={user}
+        onLogout={logoutUser}
+      />
+
+      {/* Mobile Tab Switcher */}
+      <div className="mobile-tab-bar" id="mobile-tab-switch">
+        <button
+          type="button"
+          className={`mobile-tab-btn ${mobileTab === 'editor' ? 'active' : ''}`}
+          onClick={() => setMobileTab('editor')}
+        >
+          <Edit3 size={15} />
+          <span>Editor</span>
+        </button>
+        <button
+          type="button"
+          className={`mobile-tab-btn ${mobileTab === 'preview' ? 'active' : ''}`}
+          onClick={() => setMobileTab('preview')}
+        >
+          <Smartphone size={15} />
+          <span>Vorschau</span>
+        </button>
+      </div>
+
+      <main className="dashboard-grid" id="main-workspace-grid">
+        {/* Editor Column */}
+        <section
+          className={`editor-column ${mobileTab === 'editor' ? 'mobile-visible' : 'mobile-hidden'}`}
+          id="editor-panels-section"
+        >
+          <ProfileEditor
+            profile={profile}
+            setProfile={handleProfileStateChange}
+            uid={user.uid}
+            initialUsername={initialUsername}
+          />
+
+          <LinksEditor
+            links={profile.links || []}
+            setLinks={handleLinksChange}
+          />
+
+          <DesignEditor
+            styling={profile.styling || DEFAULT_PROFILE.styling}
+            setStyling={handleStylingChange}
+          />
+        </section>
+
+        {/* Live Smartphone Preview Column */}
+        <section
+          className={`preview-column ${mobileTab === 'preview' ? 'mobile-visible' : 'mobile-hidden'}`}
+          id="preview-sticky-section"
+        >
+          <PhonePreview profile={profile} />
+        </section>
+      </main>
+    </div>
+  );
 }
 
-async function saveProfile(uid, profile, links) {
-  const username = profile.username.trim().toLowerCase();
-  if (!(await usernameAvailable(username, uid))) throw new Error('Dieser Benutzername ist bereits vergeben.');
-  await setDoc(doc(db, 'usernames', username), { uid });
-  await setDoc(doc(db, 'profiles', uid), { ...profile, username, links, updatedAt: Date.now() });
+function App() {
+  return (
+    <Routes>
+      <Route path="/" element={<Dashboard />} />
+      <Route path="/:username" element={<PublicProfile />} />
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
+  );
 }
 
-function AuthPanel({ onDone }) {
-  const [mode, setMode] = useState('login'); const [email, setEmail] = useState(''); const [password, setPassword] = useState(''); const [error, setError] = useState('');
-  const submit = async e => { e.preventDefault(); setError(''); try { if (mode === 'login') await signInWithEmailAndPassword(auth, email, password); else await createUserWithEmailAndPassword(auth, email, password); onDone(); } catch (x) { setError(x.message); } };
-  return <div className="auth-wrap"><div className="auth-card"><div className="brand-mark">L</div><h1>{mode === 'login' ? 'Willkommen zurück' : 'Account erstellen'}</h1><p className="muted">Erstelle deine persönliche Link-Seite.</p><button className="google" onClick={() => signInWithPopup(auth, new GoogleAuthProvider())}>Mit Google fortfahren</button><div className="divider"><span>oder</span></div><form onSubmit={submit}><input type="email" placeholder="E-Mail" value={email} onChange={e => setEmail(e.target.value)} required /><input type="password" placeholder="Passwort" value={password} onChange={e => setPassword(e.target.value)} minLength="6" required /><button className="primary" type="submit">{mode === 'login' ? 'Anmelden' : 'Registrieren'}</button></form>{error && <p className="error">{error}</p>}<button className="text-button" onClick={() => setMode(mode === 'login' ? 'register' : 'login')}>{mode === 'login' ? 'Noch kein Account? Registrieren' : 'Bereits registriert? Anmelden'}</button></div></div>;
-}
-
-function Editor() {
-  const [user, setUser] = useState(null); const [profile, setProfile] = useState(defaults); const [links, setLinks] = useState(starter); const [saved, setSaved] = useState(false); const [loading, setLoading] = useState(true); const navigate = useNavigate();
-  useEffect(() => onAuthStateChanged(auth, async u => { setUser(u); if (!u) { setLoading(false); return; } const snap = await getDoc(doc(db, 'profiles', u.uid)); if (snap.exists()) { const d = snap.data(); setProfile({ ...defaults, ...d }); setLinks(d.links || []); } setLoading(false); }), []);
-  if (loading) return <div className="center">Lädt …</div>; if (!user) return <AuthPanel onDone={() => {}} />;
-  const updateLink = (id, key, value) => setLinks(ls => ls.map(l => l.id === id ? { ...l, [key]: value } : l));
-  const save = async () => { try { await saveProfile(user.uid, profile, links); setSaved(true); setTimeout(() => setSaved(false), 1800); } catch (e) { alert(e.message); } };
-  return <div className="app"><header><div className="logo">Linkspace</div><div className="header-actions"><Link className="preview-link" to={profile.username ? `/${profile.username}` : '#'} target="_blank"><ExternalLink size={15}/> Vorschau</Link><button className="save" onClick={save}><Save size={15}/> {saved ? 'Gespeichert' : 'Speichern'}</button><button className="icon-btn" onClick={() => signOut(auth)} title="Abmelden"><LogOut size={16}/></button></div></header><main className="workspace"><section className="controls"><div className="section-title"><div><span className="eyebrow">WORKSPACE</span><h2>Deine Seite</h2></div></div><div className="panel"><h3><UserRound size={16}/> Profil</h3><label>Anzeigename<input value={profile.displayName} onChange={e => setProfile({ ...profile, displayName: e.target.value })}/></label><label>Bio<textarea value={profile.bio} onChange={e => setProfile({ ...profile, bio: e.target.value })}/></label><label>Benutzername<div className="username-input"><span>/</span><input value={profile.username} onChange={e => setProfile({ ...profile, username: e.target.value.toLowerCase().replace(/[^a-z0-9_.-]/g, '') })} placeholder="deinname"/></div></label></div><div className="panel"><div className="panel-head"><h3><Link2 size={16}/> Links</h3><button className="add" onClick={() => setLinks([...links, { id: crypto.randomUUID(), title: 'Neuer Link', url: 'https://' }])}><Plus size={15}/> Link hinzufügen</button></div><div className="link-editor">{links.map((l, i) => <div className="link-row" key={l.id}><GripVertical className="grip" size={17}/><div className="link-fields"><input value={l.title} onChange={e => updateLink(l.id, 'title', e.target.value)}/><input value={l.url} onChange={e => updateLink(l.id, 'url', e.target.value)} placeholder="https://…"/></div><button className="danger" onClick={() => setLinks(links.filter(x => x.id !== l.id))}><Trash2 size={15}/></button></div>)}</div></div><div className="panel"><h3><Palette size={16}/> Erscheinungsbild</h3><div className="color-grid"><label>Hintergrund<input type="color" value={profile.background} onChange={e => setProfile({...profile, background:e.target.value})}/></label><label>Buttons<input type="color" value={profile.button} onChange={e => setProfile({...profile, button:e.target.value})}/></label></div><label>Schrift<select value={profile.font} onChange={e => setProfile({...profile,font:e.target.value})}><option>Inter</option><option>system-ui</option><option>Georgia</option></select></label></div></section><section className="preview-area"><div className="preview-label">LIVE PREVIEW</div><div className="phone"><Profile profile={profile} links={links} editor/></div></section></main></div>;
-}
-
-function Profile({ profile, links, editor=false }) { return <div className="profile" style={{ background: profile.background, fontFamily: profile.font }}><div className="profile-content"><div className="avatar">{(profile.displayName || 'Y').slice(0,1).toUpperCase()}</div><h1>{profile.displayName || 'Your Name'}</h1><p>{profile.bio}</p><div className="public-links">{links.map(l => <a key={l.id} href={l.url} target="_blank" rel="noreferrer" style={{background: profile.button, color: profile.buttonText, borderRadius: profile.radius}}>{l.title}<ExternalLink size={14}/></a>)}</div><span className="powered">Linkspace</span></div></div> }
-
-function PublicProfile() { const { username } = useParams(); const [data, setData] = useState(null); const [missing,setMissing] = useState(false); useEffect(() => { (async()=>{ if(!db)return; const s=await getDoc(doc(db,'usernames',username.toLowerCase())); if(!s.exists()){setMissing(true);return;} const p=await getDoc(doc(db,'profiles',s.data().uid)); setData(p.exists()?p.data():null); })(); },[username]); if(missing) return <div className="center">Profil nicht gefunden.</div>; if(!data) return <div className="center">Lädt …</div>; return <Profile profile={{...defaults,...data}} links={data.links||[]} /> }
-function App(){return <Routes><Route path="/" element={<Editor/>}/><Route path="/:username" element={<PublicProfile/>}/></Routes>}
-createRoot(document.getElementById('root')).render(<BrowserRouter><App/></BrowserRouter>);
+createRoot(document.getElementById('root')).render(
+  <BrowserRouter>
+    <App />
+  </BrowserRouter>
+);

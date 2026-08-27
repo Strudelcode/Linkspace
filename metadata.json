@@ -1,0 +1,6 @@
+{
+  "name": "Linkspace",
+  "description": "A customizable link-in-bio page builder and profile viewer with real-time preview, custom theming, and link management.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

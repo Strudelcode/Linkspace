@@ -1,0 +1,23 @@
+{
+  "entities": {
+    "UserProfile": {
+      "collection": "profiles",
+      "fields": {
+        "userId": { "type": "string", "required": true },
+        "username": { "type": "string", "required": true },
+        "displayName": { "type": "string", "required": true },
+        "bio": { "type": "string", "required": false },
+        "avatarUrl": { "type": "string", "required": false },
+        "links": { "type": "array", "required": true },
+        "styling": { "type": "object", "required": true },
+        "updatedAt": { "type": "number", "required": true }
+      }
+    },
+    "UsernameClaim": {
+      "collection": "usernames",
+      "fields": {
+        "uid": { "type": "string", "required": true }
+      }
+    }
+  }
+}

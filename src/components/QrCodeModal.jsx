@@ -81,42 +81,42 @@ export function QrCodeModal({ username, displayName, avatarUrl, onClose }) {
           </div>
 
           {/* Domain configuration toggle */}
-          <div className="w-full mt-2">
+          <div className="w-full mt-2 flex justify-center">
             <button
               type="button"
-              className="text-xs text-slate-400 hover:text-slate-200 flex items-center justify-center gap-1 mx-auto"
+              className="btn-domain-toggle"
               onClick={() => setShowDomainConfig(!showDomainConfig)}
             >
-              <Globe size={12} />
+              <Globe size={13} className="text-indigo-400" />
               <span>{showDomainConfig ? 'Domain-Optionen verbergen' : 'Domain oder Host anpassen'}</span>
             </button>
-
-            {showDomainConfig && (
-              <div className="mt-2 p-2.5 bg-slate-900/80 rounded-xl border border-slate-800 text-left">
-                <label className="text-xs text-slate-400 block mb-1">Ziel-Domain für QR-Code:</label>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    className="form-input text-xs font-mono py-1.5"
-                    value={customOrigin}
-                    onChange={(e) => setCustomOrigin(e.target.value)}
-                    placeholder="https://deinedomain.de"
-                  />
-                  <button
-                    type="button"
-                    className="btn btn-secondary btn-sm text-xs py-1"
-                    onClick={() => setCustomOrigin(window.location.origin)}
-                    title="Auf aktuelle Browser-Domain zurücksetzen"
-                  >
-                    Reset
-                  </button>
-                </div>
-                <span className="text-[11px] text-slate-500 block mt-1">
-                  Der QR-Code passt sich in Echtzeit an die angegebene Domain an.
-                </span>
-              </div>
-            )}
           </div>
+
+          {showDomainConfig && (
+            <div className="w-full mt-2 p-2.5 bg-slate-900/80 rounded-xl border border-slate-800 text-left">
+              <label className="text-xs text-slate-400 block mb-1">Ziel-Domain für QR-Code:</label>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  className="form-input text-xs font-mono py-1.5"
+                  value={customOrigin}
+                  onChange={(e) => setCustomOrigin(e.target.value)}
+                  placeholder="https://deinedomain.de"
+                />
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm text-xs py-1"
+                  onClick={() => setCustomOrigin(window.location.origin)}
+                  title="Auf aktuelle Browser-Domain zurücksetzen"
+                >
+                  Reset
+                </button>
+              </div>
+              <span className="text-[11px] text-slate-500 block mt-1">
+                Der QR-Code passt sich in Echtzeit an die angegebene Domain an.
+              </span>
+            </div>
+          )}
 
           <div className="qr-actions-grid mt-4">
             <button

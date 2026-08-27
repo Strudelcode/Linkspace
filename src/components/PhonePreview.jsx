@@ -195,7 +195,7 @@ export function PhonePreview({ profile }) {
             <div className="phone-footer-brand">
               <div className="footer-brand-pill">
                 <Logo size={14} />
-                <span>Linkspace</span>
+                <span>Linkspacee</span>
               </div>
             </div>
           </div>

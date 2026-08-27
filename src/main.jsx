@@ -142,7 +142,7 @@ function Dashboard() {
     return (
       <div className="center-loader" id="app-loading-spinner">
         <Loader2 size={32} className="spin text-primary" />
-        <span className="text-muted text-sm mt-3">Linkspace wird initialisiert …</span>
+        <span className="text-muted text-sm mt-3">Linkspacee wird initialisiert …</span>
       </div>
     );
   }
@@ -259,13 +259,67 @@ function Dashboard() {
   );
 }
 
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error, errorInfo) {
+    console.error("Linkspacee App Error:", error, errorInfo);
+  }
+
+  handleReset = () => {
+    localStorage.clear();
+    window.location.reload();
+  };
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="center-loader p-6 text-center max-w-md mx-auto" id="error-boundary-screen">
+          <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-xl space-y-4">
+            <h3 className="text-lg font-bold text-white">Ein unerwarteter Anzeigefehler ist aufgetreten</h3>
+            <p className="text-xs text-slate-400">
+              {this.state.error?.message || 'Die Ansicht konnte nicht geladen werden.'}
+            </p>
+            <div className="flex gap-2 justify-center">
+              <button
+                type="button"
+                onClick={() => window.location.reload()}
+                className="btn btn-primary text-xs py-2 px-4"
+              >
+                Seite neu laden
+              </button>
+              <button
+                type="button"
+                onClick={this.handleReset}
+                className="btn btn-secondary text-xs py-2 px-4"
+              >
+                Cache leeren & Reset
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 function App() {
   return (
-    <Routes>
-      <Route path="/" element={<Dashboard />} />
-      <Route path="/:username" element={<PublicProfile />} />
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+    <ErrorBoundary>
+      <Routes>
+        <Route path="/" element={<Dashboard />} />
+        <Route path="/:username" element={<PublicProfile />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </ErrorBoundary>
   );
 }
 

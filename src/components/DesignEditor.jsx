@@ -506,25 +506,17 @@ export function DesignEditor({ styling, setStyling, uid = '' }) {
         <div className="form-group">
           <div className="flex items-center justify-between mb-2">
             <label className="text-xs font-semibold text-slate-300">Button-Farbmodus</label>
-            <div className="flex items-center gap-2">
+            <div className="segmented-control-group">
               <button
                 type="button"
-                className={`text-xs px-2.5 py-1 rounded-md transition-all ${
-                  !styling.buttonGradientEnabled
-                    ? 'bg-primary text-white font-medium shadow-sm'
-                    : 'text-slate-400 hover:text-slate-200'
-                }`}
+                className={`segmented-control-btn ${!styling.buttonGradientEnabled ? 'active' : ''}`}
                 onClick={() => updateField('buttonGradientEnabled', false)}
               >
                 Einfarbig
               </button>
               <button
                 type="button"
-                className={`text-xs px-2.5 py-1 rounded-md transition-all ${
-                  styling.buttonGradientEnabled
-                    ? 'bg-primary text-white font-medium shadow-sm'
-                    : 'text-slate-400 hover:text-slate-200'
-                }`}
+                className={`segmented-control-btn ${styling.buttonGradientEnabled ? 'active' : ''}`}
                 onClick={() => {
                   setStyling((prev) => ({
                     ...prev,

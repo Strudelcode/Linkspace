@@ -23,7 +23,7 @@ export function Header({
       <div className="header-left">
         <Link to="/" className="logo-brand" id="header-logo-link">
           <Logo size={26} />
-          <span className="logo-text">Linkspace</span>
+          <span className="logo-text">Linkspacee</span>
         </Link>
         {profile.username && (
           <span className="username-pill">

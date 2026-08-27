@@ -76,6 +76,14 @@ button, input, textarea, select {
   color: inherit;
 }
 
+button {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  color: inherit;
+}
+
 .text-muted { color: var(--text-muted); }
 .text-xs { font-size: 11px; }
 .text-sm { font-size: 13px; }
@@ -1486,6 +1494,59 @@ button, input, textarea, select {
   transform: translateY(-1px);
 }
 
+.btn-github {
+  width: 100%;
+  height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: #24292f;
+  color: #ffffff;
+  border: 1px solid #374151;
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.btn-github:hover:not(:disabled) {
+  background: #2f363d;
+  border-color: #4b5563;
+  transform: translateY(-1px);
+}
+.btn-github:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn-oauth-secondary {
+  width: 100%;
+  height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: #141b27;
+  color: #e2e8f0;
+  border: 1px solid #243046;
+  border-radius: var(--radius-sm);
+  font-weight: 500;
+  font-size: 12.5px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.btn-oauth-secondary:hover:not(:disabled) {
+  background: #1c2638;
+  border-color: #3b82f6;
+  color: #ffffff;
+  transform: translateY(-1px);
+}
+.btn-oauth-secondary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .auth-separator {
   display: flex;
   align-items: center;
@@ -2654,4 +2715,74 @@ button, input, textarea, select {
 .logo-svg-icon:hover {
   transform: scale(1.05);
 }
+
+/* --------------------------------------------------------------------------
+   Segmented Controls (Button-Farbmodus, etc.)
+   -------------------------------------------------------------------------- */
+.segmented-control-group {
+  display: inline-flex;
+  align-items: center;
+  background: #090c13;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  padding: 3px;
+  gap: 3px;
+}
+
+.segmented-control-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 5px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #94a3b8;
+  border-radius: 6px;
+  background: transparent;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.segmented-control-btn:hover:not(.active) {
+  color: #f1f5f9;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.segmented-control-btn.active {
+  background: #4f46e5;
+  color: #ffffff;
+  font-weight: 600;
+  border-color: #6366f1;
+  box-shadow: 0 1px 4px rgba(79, 70, 229, 0.3);
+}
+
+/* --------------------------------------------------------------------------
+   QR-Code Domain Toggle Button
+   -------------------------------------------------------------------------- */
+.btn-domain-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #94a3b8;
+  padding: 6px 14px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  margin: 0 auto;
+}
+
+.btn-domain-toggle:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #f8fafc;
+  border-color: rgba(255, 255, 255, 0.25);
+  transform: translateY(-1px);
+}
+
 

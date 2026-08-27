@@ -2,6 +2,8 @@ import { initializeApp } from 'firebase/app';
 import {
   getAuth,
   GoogleAuthProvider,
+  GithubAuthProvider,
+  OAuthProvider,
   signInWithPopup,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
@@ -40,12 +42,30 @@ let auth = null;
 let db = null;
 let storage = null;
 
+// Support Vite environment variables (e.g. GitHub Secrets / Actions / .env) with fallback to applet config
+const envConfig = {
+  apiKey: import.meta.env?.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env?.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env?.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env?.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env?.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env?.VITE_FIREBASE_APP_ID,
+  firestoreDatabaseId: import.meta.env?.VITE_FIREBASE_FIRESTORE_DATABASE_ID
+};
+
+const activeConfig = (envConfig.apiKey && envConfig.projectId)
+  ? {
+      ...firebaseConfig,
+      ...Object.fromEntries(Object.entries(envConfig).filter(([_, v]) => v != null && v !== ''))
+    }
+  : firebaseConfig;
+
 try {
-  if (firebaseConfig && firebaseConfig.apiKey) {
-    app = initializeApp(firebaseConfig);
+  if (activeConfig && activeConfig.apiKey) {
+    app = initializeApp(activeConfig);
     auth = getAuth(app);
-    db = firebaseConfig.firestoreDatabaseId && firebaseConfig.firestoreDatabaseId !== '(default)'
-      ? getFirestore(app, firebaseConfig.firestoreDatabaseId)
+    db = activeConfig.firestoreDatabaseId && activeConfig.firestoreDatabaseId !== '(default)'
+      ? getFirestore(app, activeConfig.firestoreDatabaseId)
       : getFirestore(app);
     try {
       storage = getStorage(app);
@@ -59,6 +79,9 @@ try {
 
 const googleProvider = new GoogleAuthProvider();
 googleProvider.setCustomParameters({ prompt: 'select_account' });
+
+const githubProvider = new GithubAuthProvider();
+const microsoftProvider = new OAuthProvider('microsoft.com');
 
 // Listeners list for demo/guest auth state synchronization
 const customAuthListeners = new Set();
@@ -111,6 +134,32 @@ export async function loginWithGoogle() {
   }
   try {
     const res = await signInWithPopup(auth, googleProvider);
+    localStorage.removeItem(LOCAL_GUEST_KEY);
+    return res.user;
+  } catch (error) {
+    throw new Error(translateAuthError(error.code) || error.message);
+  }
+}
+
+export async function loginWithGithub() {
+  if (!auth) {
+    throw new Error('Firebase ist im Offline-Modus. Bitte als Gast fortfahren.');
+  }
+  try {
+    const res = await signInWithPopup(auth, githubProvider);
+    localStorage.removeItem(LOCAL_GUEST_KEY);
+    return res.user;
+  } catch (error) {
+    throw new Error(translateAuthError(error.code) || error.message);
+  }
+}
+
+export async function loginWithMicrosoft() {
+  if (!auth) {
+    throw new Error('Firebase ist im Offline-Modus. Bitte als Gast fortfahren.');
+  }
+  try {
+    const res = await signInWithPopup(auth, microsoftProvider);
     localStorage.removeItem(LOCAL_GUEST_KEY);
     return res.user;
   } catch (error) {
@@ -192,6 +241,8 @@ export function subscribeToAuth(callback) {
  */
 function translateAuthError(code) {
   switch (code) {
+    case 'auth/operation-not-allowed':
+      return 'E-Mail/Passwort ist in der Firebase Console noch deaktiviert (unter Firebase Console -> Authentication -> Sign-in method aktivieren). Nutze alternativ Google, GitHub oder den Gast-Modus!';
     case 'auth/invalid-email':
       return 'Ungültige E-Mail-Adresse.';
     case 'auth/user-disabled':
@@ -205,7 +256,15 @@ function translateAuthError(code) {
     case 'auth/weak-password':
       return 'Das Passwort muss mindestens 6 Zeichen lang sein.';
     case 'auth/popup-closed-by-user':
-      return 'Google-Anmeldefenster wurde geschlossen.';
+      return 'Anmeldefenster wurde geschlossen.';
+    case 'auth/popup-blocked':
+      return 'Das Anmeldefenster wurde vom Browser blockiert. Bitte Popups erlauben.';
+    case 'auth/cancelled-popup-request':
+      return 'Anmeldeanfrage abgebrochen.';
+    case 'auth/account-exists-with-different-credential':
+      return 'Ein Account mit dieser E-Mail existiert bereits über einen anderen Login-Anbieter.';
+    case 'auth/too-many-requests':
+      return 'Zu viele Anmeldeversuche. Bitte warte kurz oder nutze einen anderen Login-Weg.';
     case 'auth/network-request-failed':
       return 'Netzwerkfehler. Bitte Internetverbindung prüfen.';
     case 'auth/api-key-not-valid.-please-pass-a-valid-api-key.':

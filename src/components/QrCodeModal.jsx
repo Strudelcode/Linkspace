@@ -1,14 +1,18 @@
 import React, { useEffect, useRef, useState } from 'react';
 import QRCode from 'qrcode';
-import { X, Download, Copy, Check, Sparkles, ExternalLink } from 'lucide-react';
+import { X, Download, Copy, Check, Sparkles, ExternalLink, Globe, Sliders } from 'lucide-react';
 import { Logo } from './Logo';
 
 export function QrCodeModal({ username, displayName, avatarUrl, onClose }) {
   const [copied, setCopied] = useState(false);
-  const [svgData, setSvgData] = useState('');
+  const [customOrigin, setCustomOrigin] = useState(
+    typeof window !== 'undefined' ? window.location.origin : 'https://linkspace.dev'
+  );
+  const [showDomainConfig, setShowDomainConfig] = useState(false);
   const canvasRef = useRef(null);
 
-  const profileUrl = `${window.location.origin}/${username}`;
+  const cleanBase = customOrigin.replace(/\/+$/, '');
+  const profileUrl = `${cleanBase}/${username}`;
 
   useEffect(() => {
     if (!username) return;
@@ -30,21 +34,6 @@ export function QrCodeModal({ username, displayName, avatarUrl, onClose }) {
         }
       );
     }
-
-    QRCode.toString(
-      profileUrl,
-      {
-        type: 'svg',
-        margin: 2,
-        color: {
-          dark: '#090a0f',
-          light: '#ffffff'
-        }
-      },
-      (err, string) => {
-        if (!err) setSvgData(string);
-      }
-    );
   }, [username, profileUrl]);
 
   const handleCopy = () => {
@@ -66,8 +55,8 @@ export function QrCodeModal({ username, displayName, avatarUrl, onClose }) {
       <div className="modal-content qr-modal-card" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <div className="flex items-center gap-2">
-            <Logo size={22} />
-            <h3 className="text-base font-semibold">QR-Code für @{username}</h3>
+            <Logo size={24} />
+            <h3 className="text-base font-semibold text-slate-100">QR-Code für @{username}</h3>
           </div>
           <button
             type="button"
@@ -86,10 +75,50 @@ export function QrCodeModal({ username, displayName, avatarUrl, onClose }) {
 
           <div className="qr-profile-info">
             <h4 className="font-semibold text-sm text-slate-100">{displayName || username}</h4>
-            <p className="text-xs text-slate-400">linkspace.dev/{username}</p>
+            <div className="flex items-center justify-center gap-1.5 mt-1">
+              <span className="text-xs text-indigo-400 font-mono break-all">{profileUrl}</span>
+            </div>
           </div>
 
-          <div className="qr-actions-grid">
+          {/* Domain configuration toggle */}
+          <div className="w-full mt-2">
+            <button
+              type="button"
+              className="text-xs text-slate-400 hover:text-slate-200 flex items-center justify-center gap-1 mx-auto"
+              onClick={() => setShowDomainConfig(!showDomainConfig)}
+            >
+              <Globe size={12} />
+              <span>{showDomainConfig ? 'Domain-Optionen verbergen' : 'Domain oder Host anpassen'}</span>
+            </button>
+
+            {showDomainConfig && (
+              <div className="mt-2 p-2.5 bg-slate-900/80 rounded-xl border border-slate-800 text-left">
+                <label className="text-xs text-slate-400 block mb-1">Ziel-Domain für QR-Code:</label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    className="form-input text-xs font-mono py-1.5"
+                    value={customOrigin}
+                    onChange={(e) => setCustomOrigin(e.target.value)}
+                    placeholder="https://deinedomain.de"
+                  />
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-sm text-xs py-1"
+                    onClick={() => setCustomOrigin(window.location.origin)}
+                    title="Auf aktuelle Browser-Domain zurücksetzen"
+                  >
+                    Reset
+                  </button>
+                </div>
+                <span className="text-[11px] text-slate-500 block mt-1">
+                  Der QR-Code passt sich in Echtzeit an die angegebene Domain an.
+                </span>
+              </div>
+            )}
+          </div>
+
+          <div className="qr-actions-grid mt-4">
             <button
               type="button"
               className="btn btn-secondary btn-sm"

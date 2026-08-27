@@ -10,6 +10,7 @@ import {
 import { DEFAULT_PROFILE, DISCORD_SUPPORT_URL } from './constants';
 import { Header } from './components/Header';
 import { AuthModal } from './components/AuthModal';
+import { SaveGuestModal } from './components/SaveGuestModal';
 import { ProfileEditor } from './components/ProfileEditor';
 import { LinksEditor } from './components/LinksEditor';
 import { DesignEditor } from './components/DesignEditor';
@@ -32,6 +33,7 @@ function Dashboard() {
   const [isSaved, setIsSaved] = useState(false);
   const [saveError, setSaveError] = useState('');
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [showGuestSaveModal, setShowGuestSaveModal] = useState(false);
 
   // Mobile tab switch (editor vs live preview)
   const [mobileTab, setMobileTab] = useState('editor');
@@ -56,7 +58,7 @@ function Dashboard() {
             setInitialUsername(remoteProfile.username || '');
           } else {
             // First time setup: seed with user's info
-            const generatedUsername = (currentUser.displayName || currentUser.email?.split('@')[0] || 'user')
+            const generatedUsername = (currentUser.displayName || currentUser.email?.split('@')[0] || 'creator')
               .toLowerCase()
               .replace(/[^a-z0-9_.-]/g, '')
               .slice(0, 20);
@@ -64,7 +66,7 @@ function Dashboard() {
             const initial = {
               ...DEFAULT_PROFILE,
               displayName: currentUser.displayName || 'Mein Name',
-              username: generatedUsername,
+              username: generatedUsername || 'creator',
               avatarUrl: currentUser.photoURL || ''
             };
             setProfile(initial);
@@ -81,14 +83,14 @@ function Dashboard() {
     return () => unsubscribe();
   }, []);
 
-  const handleSave = async () => {
-    if (!user) return;
+  const executeSave = async (targetUid = user?.uid) => {
+    if (!targetUid) return;
     setIsSaving(true);
     setSaveError('');
 
     try {
       const savedUsername = await saveUserProfileTransaction(
-        user.uid,
+        targetUid,
         profile,
         initialUsername
       );
@@ -102,6 +104,20 @@ function Dashboard() {
     } finally {
       setIsSaving(false);
     }
+  };
+
+  const handleSaveClick = () => {
+    // If user is guest/anonymous, prompt them with the guest-save modal to permanently secure their account
+    if (user && (user.isGuest || user.isAnonymous)) {
+      setShowGuestSaveModal(true);
+      return;
+    }
+    executeSave();
+  };
+
+  const handleAuthenticatedAndSave = async (authenticatedUser) => {
+    setUser(authenticatedUser);
+    await executeSave(authenticatedUser.uid);
   };
 
   const handleLinksChange = (newLinks) => {
@@ -143,7 +159,7 @@ function Dashboard() {
         isSaved={isSaved}
         saveError={saveError}
         hasUnsavedChanges={hasUnsavedChanges}
-        onSave={handleSave}
+        onSave={handleSaveClick}
         user={user}
         onLogout={logoutUser}
       />
@@ -229,6 +245,16 @@ function Dashboard() {
           <PhonePreview profile={profile} />
         </section>
       </main>
+
+      {/* Guest Save / Account Protection Modal */}
+      {showGuestSaveModal && (
+        <SaveGuestModal
+          profile={profile}
+          onSaveDirectlyAsGuest={() => executeSave(user.uid)}
+          onAuthenticatedAndSave={handleAuthenticatedAndSave}
+          onClose={() => setShowGuestSaveModal(false)}
+        />
+      )}
     </div>
   );
 }

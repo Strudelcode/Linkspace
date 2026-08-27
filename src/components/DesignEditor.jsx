@@ -502,46 +502,162 @@ export function DesignEditor({ styling, setStyling, uid = '' }) {
           <span>Buttons & Links</span>
         </div>
 
-        <div className="grid-2-cols">
-          <div className="form-group">
-            <label>Button Hintergrund</label>
-            <div className="color-picker-row-pro">
-              <div className="color-preview-circle" style={{ backgroundColor: styling.button || '#ffffff' }}>
-                <input
-                  type="color"
-                  className="color-native-trigger"
-                  value={styling.button || '#ffffff'}
-                  onChange={(e) => updateField('button', e.target.value)}
-                />
-              </div>
-              <input
-                type="text"
-                className="form-input color-hex-input font-mono"
-                value={styling.button || '#ffffff'}
-                onChange={(e) => updateField('button', e.target.value)}
-              />
+        {/* Button Color Type: Solid vs Gradient */}
+        <div className="form-group">
+          <div className="flex items-center justify-between mb-2">
+            <label className="text-xs font-semibold text-slate-300">Button-Farbmodus</label>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                className={`text-xs px-2.5 py-1 rounded-md transition-all ${
+                  !styling.buttonGradientEnabled
+                    ? 'bg-primary text-white font-medium shadow-sm'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+                onClick={() => updateField('buttonGradientEnabled', false)}
+              >
+                Einfarbig
+              </button>
+              <button
+                type="button"
+                className={`text-xs px-2.5 py-1 rounded-md transition-all ${
+                  styling.buttonGradientEnabled
+                    ? 'bg-primary text-white font-medium shadow-sm'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+                onClick={() => {
+                  setStyling((prev) => ({
+                    ...prev,
+                    buttonGradientEnabled: true,
+                    buttonGradientStart: prev.buttonGradientStart || prev.button || '#6366f1',
+                    buttonGradientEnd: prev.buttonGradientEnd || '#a855f7',
+                    buttonGradientAngle: prev.buttonGradientAngle || 135
+                  }));
+                }}
+              >
+                Farbverlauf
+              </button>
             </div>
           </div>
 
-          <div className="form-group">
-            <label>Button Textfarbe</label>
-            <div className="color-picker-row-pro">
-              <div className="color-preview-circle" style={{ backgroundColor: styling.buttonText || '#000000' }}>
+          {!styling.buttonGradientEnabled ? (
+            <div className="grid-2-cols">
+              <div className="form-group mb-0">
+                <label>Button Hintergrund</label>
+                <div className="color-picker-row-pro">
+                  <div className="color-preview-circle" style={{ backgroundColor: styling.button || '#ffffff' }}>
+                    <input
+                      type="color"
+                      className="color-native-trigger"
+                      value={styling.button || '#ffffff'}
+                      onChange={(e) => updateField('button', e.target.value)}
+                    />
+                  </div>
+                  <input
+                    type="text"
+                    className="form-input color-hex-input font-mono"
+                    value={styling.button || '#ffffff'}
+                    onChange={(e) => updateField('button', e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div className="form-group mb-0">
+                <label>Button Textfarbe</label>
+                <div className="color-picker-row-pro">
+                  <div className="color-preview-circle" style={{ backgroundColor: styling.buttonText || '#000000' }}>
+                    <input
+                      type="color"
+                      className="color-native-trigger"
+                      value={styling.buttonText || '#000000'}
+                      onChange={(e) => updateField('buttonText', e.target.value)}
+                    />
+                  </div>
+                  <input
+                    type="text"
+                    className="form-input color-hex-input font-mono"
+                    value={styling.buttonText || '#000000'}
+                    onChange={(e) => updateField('buttonText', e.target.value)}
+                  />
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="gradient-controls-grid-pro p-3 bg-slate-900/60 rounded-xl border border-slate-800/80">
+              <div className="form-group mb-2">
+                <label className="text-xs text-slate-300">Verlauf Start</label>
+                <div className="color-picker-row-pro">
+                  <div className="color-preview-circle" style={{ backgroundColor: styling.buttonGradientStart || '#6366f1' }}>
+                    <input
+                      type="color"
+                      className="color-native-trigger"
+                      value={styling.buttonGradientStart || '#6366f1'}
+                      onChange={(e) => updateField('buttonGradientStart', e.target.value)}
+                    />
+                  </div>
+                  <input
+                    type="text"
+                    className="form-input color-hex-input font-mono text-xs"
+                    value={styling.buttonGradientStart || '#6366f1'}
+                    onChange={(e) => updateField('buttonGradientStart', e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div className="form-group mb-2">
+                <label className="text-xs text-slate-300">Verlauf Ende</label>
+                <div className="color-picker-row-pro">
+                  <div className="color-preview-circle" style={{ backgroundColor: styling.buttonGradientEnd || '#a855f7' }}>
+                    <input
+                      type="color"
+                      className="color-native-trigger"
+                      value={styling.buttonGradientEnd || '#a855f7'}
+                      onChange={(e) => updateField('buttonGradientEnd', e.target.value)}
+                    />
+                  </div>
+                  <input
+                    type="text"
+                    className="form-input color-hex-input font-mono text-xs"
+                    value={styling.buttonGradientEnd || '#a855f7'}
+                    onChange={(e) => updateField('buttonGradientEnd', e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div className="form-group mb-2">
+                <label className="text-xs text-slate-300">Textfarbe</label>
+                <div className="color-picker-row-pro">
+                  <div className="color-preview-circle" style={{ backgroundColor: styling.buttonText || '#ffffff' }}>
+                    <input
+                      type="color"
+                      className="color-native-trigger"
+                      value={styling.buttonText || '#ffffff'}
+                      onChange={(e) => updateField('buttonText', e.target.value)}
+                    />
+                  </div>
+                  <input
+                    type="text"
+                    className="form-input color-hex-input font-mono text-xs"
+                    value={styling.buttonText || '#ffffff'}
+                    onChange={(e) => updateField('buttonText', e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div className="form-group mb-2">
+                <label className="text-xs text-slate-300">Winkel ({styling.buttonGradientAngle || 135}°)</label>
                 <input
-                  type="color"
-                  className="color-native-trigger"
-                  value={styling.buttonText || '#000000'}
-                  onChange={(e) => updateField('buttonText', e.target.value)}
+                  type="range"
+                  min="0"
+                  max="360"
+                  step="15"
+                  className="form-range-pro mt-2"
+                  value={styling.buttonGradientAngle || 135}
+                  onChange={(e) => updateField('buttonGradientAngle', Number(e.target.value))}
                 />
               </div>
-              <input
-                type="text"
-                className="form-input color-hex-input font-mono"
-                value={styling.buttonText || '#000000'}
-                onChange={(e) => updateField('buttonText', e.target.value)}
-              />
             </div>
-          </div>
+          )}
         </div>
 
         {/* Button Style (Solid, Outline, Glass, Soft) */}

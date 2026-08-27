@@ -2499,3 +2499,159 @@ button, input, textarea, select {
     align-items: flex-start;
   }
 }
+
+/* --------------------------------------------------------------------------
+   URL Builder & Random Name Generator Styles
+   -------------------------------------------------------------------------- */
+.btn-random-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: rgba(245, 158, 11, 0.12);
+  color: #fbbf24;
+  border: 1px solid rgba(245, 158, 11, 0.25);
+  padding: 4px 10px;
+  border-radius: 9999px;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.btn-random-name:hover {
+  background: rgba(245, 158, 11, 0.2);
+  border-color: rgba(245, 158, 11, 0.4);
+  transform: scale(1.02);
+}
+
+.url-builder-box {
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-input);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+@media (min-width: 640px) {
+  .url-builder-box {
+    flex-direction: row;
+    align-items: stretch;
+  }
+}
+
+.url-builder-box:focus-within {
+  border-color: var(--border-focus);
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+}
+
+.url-domain-badge {
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border-bottom: 1px solid var(--border-subtle);
+  font-size: 12px;
+  color: var(--text-muted);
+  user-select: none;
+  white-space: nowrap;
+}
+
+@media (min-width: 640px) {
+  .url-domain-badge {
+    border-bottom: none;
+    border-right: 1px solid var(--border-subtle);
+  }
+}
+
+.url-domain-text {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+.url-input-unit {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  padding: 0 10px 0 12px;
+  background: transparent;
+  min-width: 0;
+}
+
+.url-slash-prefix {
+  font-size: 14px;
+  font-weight: 600;
+  color: #818cf8;
+  margin-right: 6px;
+  user-select: none;
+}
+
+.url-editable-field {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--text-main);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  padding: 9px 0;
+  min-width: 0;
+}
+
+.url-status-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding-left: 8px;
+}
+
+.username-feedback-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.live-url-hint {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-family: ui-monospace, SFMono-Regular, monospace;
+}
+
+/* --------------------------------------------------------------------------
+   Save Guest / Protection Modal Styles
+   -------------------------------------------------------------------------- */
+.guest-save-modal-card {
+  max-width: 460px;
+  width: 100%;
+}
+
+.guest-save-modal-body {
+  padding: 20px;
+}
+
+.guest-save-callout {
+  display: flex;
+  gap: 10px;
+  padding: 12px 14px;
+  background: rgba(245, 158, 11, 0.08);
+  border: 1px solid rgba(245, 158, 11, 0.2);
+  border-radius: var(--radius-sm);
+  margin-bottom: 16px;
+}
+
+/* --------------------------------------------------------------------------
+   Logo & Icons Global Rounding
+   -------------------------------------------------------------------------- */
+.logo-svg-icon {
+  border-radius: 9px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  transition: transform 0.2s ease;
+}
+.logo-svg-icon:hover {
+  transform: scale(1.05);
+}
+

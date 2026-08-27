@@ -1,12 +1,34 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { User, AtSign, FileText, Upload, Image as ImageIcon, CheckCircle2, XCircle, Loader2, Trash2 } from 'lucide-react';
+import { User, AtSign, FileText, Upload, Image as ImageIcon, CheckCircle2, XCircle, Loader2, Trash2, Dices, Edit3, Globe, Sparkles } from 'lucide-react';
 import { uploadAvatar, checkUsernameAvailability, validateUsername } from '../firebase';
+
+const COOL_USERNAME_WORDS = [
+  'nova', 'zenith', 'pulse', 'pixel', 'glow', 'flow', 'cyber', 'vortex',
+  'luna', 'astro', 'echo', 'drift', 'blaze', 'hyper', 'nexus', 'prism',
+  'aurora', 'spark', 'vector', 'wave', 'cosmo', 'craft', 'orbit', 'flux'
+];
+
+const COOL_USERNAME_ROLES = [
+  'dev', 'creator', 'code', 'design', 'space', 'hub', 'pro', 'art',
+  'studio', 'lab', 'zone', 'vibes', 'works', 'flow', 'link'
+];
+
+function generateRandomUsername() {
+  const word1 = COOL_USERNAME_WORDS[Math.floor(Math.random() * COOL_USERNAME_WORDS.length)];
+  const word2 = COOL_USERNAME_ROLES[Math.floor(Math.random() * COOL_USERNAME_ROLES.length)];
+  const num = Math.floor(Math.random() * 90) + 10;
+  return `${word1}-${word2}${Math.random() > 0.4 ? num : ''}`;
+}
 
 export function ProfileEditor({ profile, setProfile, uid, initialUsername }) {
   const [avatarLoading, setAvatarLoading] = useState(false);
   const [avatarError, setAvatarError] = useState('');
   const [usernameStatus, setUsernameStatus] = useState({ checking: false, available: true, message: '' });
+  const [isRollingName, setIsRollingName] = useState(false);
   const fileInputRef = useRef(null);
+
+  // Current domain / origin
+  const currentHost = typeof window !== 'undefined' ? window.location.host : 'linkspace.dev';
 
   // Debounced username check
   useEffect(() => {
@@ -35,7 +57,7 @@ export function ProfileEditor({ profile, setProfile, uid, initialUsername }) {
       } else {
         setUsernameStatus({ checking: false, available: false, message: res.reason });
       }
-    }, 450);
+    }, 350);
 
     return () => clearTimeout(timer);
   }, [profile.username, initialUsername, uid]);
@@ -77,6 +99,13 @@ export function ProfileEditor({ profile, setProfile, uid, initialUsername }) {
     }));
   };
 
+  const handleRollRandomUsername = () => {
+    setIsRollingName(true);
+    const generated = generateRandomUsername();
+    handleUsernameChange(generated);
+    setTimeout(() => setIsRollingName(false), 400);
+  };
+
   return (
     <div className="panel" id="panel-profile-editor">
       <div className="panel-header">
@@ -105,7 +134,7 @@ export function ProfileEditor({ profile, setProfile, uid, initialUsername }) {
               )}
               {avatarLoading && (
                 <div className="avatar-loading-overlay">
-                  <Loader2 size={20} className="spin" />
+                  <Loader2 size={20} className="spin text-white" />
                 </div>
               )}
             </div>
@@ -144,7 +173,7 @@ export function ProfileEditor({ profile, setProfile, uid, initialUsername }) {
                 </button>
               )}
               <span className="text-muted text-xs">
-                JPG, PNG oder WEBP (max. 5 MB).
+                JPG, PNG oder WEBP (wird automatisch blitzschnell optimiert).
               </span>
             </div>
           </div>
@@ -167,40 +196,72 @@ export function ProfileEditor({ profile, setProfile, uid, initialUsername }) {
           />
         </div>
 
-        {/* Username */}
-        <div className="form-group">
+        {/* Username / URL with Random Generator and Mobile-Optimized Row */}
+        <div className="form-group" id="form-group-username-section">
           <div className="label-with-hint">
-            <label htmlFor="input-username">Benutzername (URL)</label>
-            <span className="text-muted text-xs">linkspace.dev/{profile.username || 'username'}</span>
+            <div className="flex items-center gap-1.5">
+              <Globe size={14} className="text-indigo-400" />
+              <label htmlFor="input-username">Benutzername (URL)</label>
+            </div>
+
+            {/* Random Username Generator Button */}
+            <button
+              type="button"
+              className="btn-random-name"
+              id="btn-roll-username"
+              onClick={handleRollRandomUsername}
+              title="Zufälligen Benutzernamen generieren"
+            >
+              <Dices size={13} className={isRollingName ? 'spin text-amber-300' : 'text-amber-400'} />
+              <span>Zufälliger Name</span>
+            </button>
           </div>
-          <div className="username-input-wrapper">
-            <span className="username-prefix">/</span>
-            <input
-              id="input-username"
-              type="text"
-              className="form-input username-field"
-              placeholder="deinname"
-              value={profile.username}
-              maxLength={30}
-              onChange={(e) => handleUsernameChange(e.target.value)}
-            />
-            <div className="username-indicator">
-              {usernameStatus.checking ? (
-                <Loader2 size={16} className="spin text-muted" />
-              ) : usernameStatus.available ? (
-                <CheckCircle2 size={16} className="text-success" />
-              ) : (
-                <XCircle size={16} className="text-danger" />
-              )}
+
+          {/* Unified URL Bar Container with Prefix and Editable Field */}
+          <div className="url-builder-box">
+            <div className="url-domain-badge">
+              <span className="url-domain-text">{currentHost}</span>
+            </div>
+
+            <div className="url-input-unit">
+              <span className="url-slash-prefix">/</span>
+              <input
+                id="input-username"
+                type="text"
+                className="url-editable-field"
+                placeholder="deinname"
+                value={profile.username}
+                maxLength={30}
+                onChange={(e) => handleUsernameChange(e.target.value)}
+                autoComplete="off"
+                spellCheck="false"
+              />
+              <div className="url-status-indicator">
+                {usernameStatus.checking ? (
+                  <Loader2 size={15} className="spin text-slate-400" />
+                ) : usernameStatus.available ? (
+                  <CheckCircle2 size={15} className="text-emerald-400" />
+                ) : (
+                  <XCircle size={15} className="text-rose-400" />
+                )}
+              </div>
             </div>
           </div>
-          <p
-            className={`form-hint ${
-              usernameStatus.available ? 'text-success' : 'text-danger'
-            }`}
-          >
-            {usernameStatus.message}
-          </p>
+
+          <div className="username-feedback-row">
+            <p
+              className={`text-xs ${
+                usernameStatus.available ? 'text-emerald-400' : 'text-rose-400'
+              }`}
+            >
+              {usernameStatus.message}
+            </p>
+            {profile.username && (
+              <span className="live-url-hint">
+                Vorschau: {currentHost}/{profile.username}
+              </span>
+            )}
+          </div>
         </div>
 
         {/* Bio */}

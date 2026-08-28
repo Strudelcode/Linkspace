@@ -95,13 +95,13 @@ export function QrCodeModal({ username, displayName, avatarUrl, onClose }) {
           {showDomainConfig && (
             <div className="w-full mt-2 p-2.5 bg-slate-900/80 rounded-xl border border-slate-800 text-left">
               <label className="text-xs text-slate-400 block mb-1">Ziel-Domain für QR-Code:</label>
-              <div className="flex gap-2">
+              <div className="flex gap-2 mb-2">
                 <input
                   type="text"
                   className="form-input text-xs font-mono py-1.5"
                   value={customOrigin}
                   onChange={(e) => setCustomOrigin(e.target.value)}
-                  placeholder="https://deinedomain.de"
+                  placeholder="https://strudelcode.github.io"
                 />
                 <button
                   type="button"
@@ -112,8 +112,25 @@ export function QrCodeModal({ username, displayName, avatarUrl, onClose }) {
                   Reset
                 </button>
               </div>
+              <div className="flex flex-wrap gap-1.5 items-center mb-1">
+                <span className="text-[11px] text-slate-400">Schnellauswahl:</span>
+                <button
+                  type="button"
+                  className="px-2 py-0.5 text-[11px] rounded bg-slate-800 hover:bg-slate-700 text-indigo-300 font-mono transition-colors"
+                  onClick={() => setCustomOrigin('https://strudelcode.github.io')}
+                >
+                  strudelcode.github.io
+                </button>
+                <button
+                  type="button"
+                  className="px-2 py-0.5 text-[11px] rounded bg-slate-800 hover:bg-slate-700 text-slate-300 font-mono transition-colors"
+                  onClick={() => setCustomOrigin(window.location.origin)}
+                >
+                  Aktueller Host
+                </button>
+              </div>
               <span className="text-[11px] text-slate-500 block mt-1">
-                Der QR-Code passt sich in Echtzeit an die angegebene Domain an.
+                Der QR-Code und Link passen sich in Echtzeit an die angegebene Domain an.
               </span>
             </div>
           )}

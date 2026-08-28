@@ -211,6 +211,7 @@ function translateAuthError(code) {
     case 'auth/cancelled-popup-request': return 'Anmeldeanfrage abgebrochen.';
     case 'auth/account-exists-with-different-credential': return 'Ein Account mit dieser E-Mail existiert bereits über einen anderen Login-Anbieter.';
     case 'auth/too-many-requests': return 'Zu viele Anmeldeversuche. Bitte warte kurz oder nutze einen anderen Login-Weg.';
+    case 'auth/unauthorized-domain': return 'Diese Domain (z. B. strudelcode.github.io) muss in der Firebase Console unter "Authentication > Settings > Authorized Domains" hinzugefügt werden.';
     case 'auth/network-request-failed': return 'Netzwerkfehler. Bitte Internetverbindung prüfen.';
     case 'auth/api-key-not-valid.-please-pass-a-valid-api-key.':
     case 'auth/api-key-not-valid': return 'Firebase API-Schlüssel ist nicht gültig.';

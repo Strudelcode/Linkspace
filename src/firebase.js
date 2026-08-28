@@ -297,7 +297,8 @@ export async function checkUsernameAvailability(username, currentUid) {
       const snap = await withTimeout(getDoc(doc(db, 'usernames', norm)), 15000, 'Username check timeout');
       if (!snap.exists()) return { available: true, username: norm };
       const data = snap.data();
-      if (data.uid === currentUid) return { available: true, isCurrentOwner: true, username: norm };
+      const ownerId = data.uid || data.userId || data.ownerUid;
+      if (ownerId === currentUid) return { available: true, isCurrentOwner: true, username: norm };
       return { available: false, reason: 'Dieser Benutzername ist bereits vergeben.' };
     } catch (error) {
       console.error('Firestore username availability check failed:', error);
@@ -402,7 +403,8 @@ export async function saveUserProfileTransaction(uid, profileData, oldUsername =
       const usernameSnap = await withTimeout(getDoc(newUsernameRef), 15000, 'Username ownership check timeout');
       if (usernameSnap.exists()) {
         const existingData = usernameSnap.data();
-        if (existingData.uid && existingData.uid !== uid) {
+        const existingOwner = existingData.uid || existingData.userId || existingData.ownerUid;
+        if (existingOwner && existingOwner !== uid) {
           throw new Error('Dieser Benutzername ist bereits von einem anderen Benutzer vergeben.');
         }
       }
@@ -419,7 +421,8 @@ export async function saveUserProfileTransaction(uid, profileData, oldUsername =
       const newSnap = await transaction.get(newUsernameRef);
       if (newSnap.exists()) {
         const existingData = newSnap.data();
-        if (existingData.uid && existingData.uid !== uid) {
+        const existingOwner = existingData.uid || existingData.userId || existingData.ownerUid;
+        if (existingOwner && existingOwner !== uid) {
           throw new Error('Dieser Benutzername ist bereits von einem anderen Benutzer vergeben.');
         }
       }

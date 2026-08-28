@@ -21,7 +21,7 @@ function generateRandomUsername() {
   return `${word1}-${word2}${Math.random() > 0.4 ? num : ''}`;
 }
 
-export function ProfileEditor({ profile, setProfile, uid, initialUsername }) {
+export function ProfileEditor({ profile, setProfile, uid, initialUsername, onToast }) {
   const [avatarLoading, setAvatarLoading] = useState(false);
   const [avatarError, setAvatarError] = useState('');
   const [usernameStatus, setUsernameStatus] = useState({ checking: false, available: true, message: '' });
@@ -78,8 +78,25 @@ export function ProfileEditor({ profile, setProfile, uid, initialUsername }) {
         ...prev,
         avatarUrl: downloadUrl
       }));
+      if (onToast) {
+        onToast({
+          type: 'success',
+          title: 'Profilbild aktualisiert',
+          message: 'Dein neues Profilbild wurde hochgeladen.',
+          duration: 3500
+        });
+      }
     } catch (err) {
-      setAvatarError(err.message || 'Fehler beim Hochladen des Profilbilds.');
+      const msg = err.message || 'Fehler beim Hochladen des Profilbilds.';
+      setAvatarError(msg);
+      if (onToast) {
+        onToast({
+          type: 'error',
+          title: 'Upload fehlgeschlagen',
+          message: msg,
+          duration: 5000
+        });
+      }
     } finally {
       setAvatarLoading(false);
       if (fileInputRef.current) fileInputRef.current.value = '';

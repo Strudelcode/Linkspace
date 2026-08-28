@@ -75,7 +75,7 @@ export function SaveGuestModal({ profile, onAuthenticatedAndSave, onClose }) {
           </div>
           <button
             type="button"
-            className="btn btn-ghost btn-icon p-1.5"
+            className="save-guest-close-btn"
             onClick={onClose}
             title="Schließen"
             aria-label="Schließen"

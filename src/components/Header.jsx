@@ -10,7 +10,6 @@ export function Header({
   profile,
   isSaving,
   isSaved,
-  saveError,
   hasUnsavedChanges,
   onSave,
   user,
@@ -19,6 +18,11 @@ export function Header({
   const [showQrModal, setShowQrModal] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const publicFullUrl = profile.username ? getPublicProfileUrl(profile.username) : null;
+
+  // Real-time synchronized display name / username for top-right user status
+  const currentIdentity = profile.username
+    ? `@${profile.username}`
+    : (profile.displayName || user?.displayName || user?.email?.split('@')[0] || 'User');
 
   const handleConfirmLogout = () => {
     setShowLogoutConfirm(false);
@@ -52,13 +56,6 @@ export function Header({
           <MessageSquare size={15} className="text-indigo-400" />
           <span className="header-btn-text-desktop">Discord Support</span>
         </a>
-
-        {saveError && (
-          <div className="save-error-pill" title={saveError}>
-            <AlertCircle size={14} />
-            <span className="header-error-text">{saveError}</span>
-          </div>
-        )}
 
         {hasUnsavedChanges && !isSaved && !isSaving && (
           <span className="unsaved-indicator header-unsaved-badge" title="Ungespeicherte Änderungen">
@@ -126,10 +123,23 @@ export function Header({
         </button>
 
         {user && (
-          <div className="user-menu">
-            <span className="user-email header-btn-text-desktop" title={user.email}>
-              {user.displayName || user.email?.split('@')[0]}
-            </span>
+          <div className="user-menu" id="header-user-menu">
+            <div className="user-identity-badge" title={`Angemeldet als ${user.email || currentIdentity}`}>
+              {profile.avatarUrl ? (
+                <img
+                  src={profile.avatarUrl}
+                  alt={profile.displayName || 'Avatar'}
+                  className="user-header-avatar"
+                />
+              ) : (
+                <div className="user-header-avatar-placeholder">
+                  {(profile.displayName || profile.username || 'U').slice(0, 1).toUpperCase()}
+                </div>
+              )}
+              <span className="user-email header-btn-text-desktop">
+                {currentIdentity}
+              </span>
+            </div>
             <button
               className="btn-icon header-logout-btn"
               id="btn-logout"

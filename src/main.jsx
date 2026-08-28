@@ -16,6 +16,7 @@ import { LinksEditor } from './components/LinksEditor';
 import { DesignEditor } from './components/DesignEditor';
 import { PhonePreview } from './components/PhonePreview';
 import { PublicProfile } from './pages/PublicProfile';
+import { ToastContainer } from './components/Toast';
 import { Smartphone, Edit3, Loader2, MessageSquare, ExternalLink, Sparkles, Heart } from 'lucide-react';
 import { getAppBasename } from './utils/urlHelper';
 import './styles.css';
@@ -35,6 +36,19 @@ function Dashboard() {
   const [saveError, setSaveError] = useState('');
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [showGuestSaveModal, setShowGuestSaveModal] = useState(false);
+
+  // Floating foreground toasts (bottom-right)
+  const [toasts, setToasts] = useState([]);
+
+  const showToast = useCallback(({ type = 'error', title, message, duration = 5000 }) => {
+    const id = Date.now().toString() + Math.random().toString(36).substring(2, 6);
+    setToasts((prev) => [...prev, { id, type, title, message, duration }]);
+    return id;
+  }, []);
+
+  const dismissToast = useCallback((id) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id));
+  }, []);
 
   // Mobile tab switch (editor vs live preview)
   const [mobileTab, setMobileTab] = useState('editor');
@@ -75,6 +89,11 @@ function Dashboard() {
           }
         } catch (err) {
           console.error("Error loading user profile:", err);
+          showToast({
+            type: 'warning',
+            title: 'Hinweis',
+            message: 'Profil konnte nicht von Firestore geladen werden. Lokale Version wird verwendet.'
+          });
         } finally {
           setProfileLoading(false);
         }
@@ -82,7 +101,7 @@ function Dashboard() {
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [showToast]);
 
   const executeSave = async (targetUid = user?.uid) => {
     if (!targetUid) return;
@@ -98,10 +117,23 @@ function Dashboard() {
       setInitialUsername(savedUsername);
       setIsSaved(true);
       setHasUnsavedChanges(false);
+      showToast({
+        type: 'success',
+        title: 'Gespeichert',
+        message: `Alle Änderungen für @${savedUsername} wurden erfolgreich gespeichert!`,
+        duration: 4000
+      });
       setTimeout(() => setIsSaved(false), 2500);
     } catch (err) {
       console.error("Save error:", err);
-      setSaveError(err.message || 'Fehler beim Speichern.');
+      const errorMsg = err.message || 'Fehler beim Speichern.';
+      setSaveError(errorMsg);
+      showToast({
+        type: 'error',
+        title: 'Fehler beim Speichern',
+        message: errorMsg,
+        duration: 5000
+      });
     } finally {
       setIsSaving(false);
     }
@@ -158,7 +190,6 @@ function Dashboard() {
         profile={profile}
         isSaving={isSaving}
         isSaved={isSaved}
-        saveError={saveError}
         hasUnsavedChanges={hasUnsavedChanges}
         onSave={handleSaveClick}
         user={user}
@@ -196,6 +227,7 @@ function Dashboard() {
             setProfile={handleProfileStateChange}
             uid={user.uid}
             initialUsername={initialUsername}
+            onToast={showToast}
           />
 
           <LinksEditor
@@ -255,6 +287,9 @@ function Dashboard() {
           onClose={() => setShowGuestSaveModal(false)}
         />
       )}
+
+      {/* Foreground Floating Toast Portal (Bottom-Right) */}
+      <ToastContainer toasts={toasts} onDismiss={dismissToast} />
     </div>
   );
 }

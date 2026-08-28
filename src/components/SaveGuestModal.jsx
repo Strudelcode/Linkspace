@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
-import { X, ShieldCheck, Sparkles, UserPlus, LogIn, Loader2, AlertCircle, Check, Lock, Mail, User } from 'lucide-react';
+import { X, ShieldCheck, Sparkles, Loader2, AlertCircle, Lock, Mail, User } from 'lucide-react';
 import { loginWithGoogle, loginWithGithub, registerWithEmail, loginWithEmail } from '../firebase';
-import { Logo } from './Logo';
 
 export function SaveGuestModal({ profile, onAuthenticatedAndSave, onClose }) {
   const [isRegister, setIsRegister] = useState(true);
@@ -55,17 +54,23 @@ export function SaveGuestModal({ profile, onAuthenticatedAndSave, onClose }) {
   };
 
   return (
-    <div className="modal-backdrop" id="save-guest-modal-overlay">
-      <div className="modal-content max-w-md w-full my-auto" id="save-guest-modal-card">
+    <div className="modal-backdrop" id="save-guest-modal-overlay" onClick={onClose}>
+      <div
+        className="save-guest-modal-card"
+        id="save-guest-modal-card"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Modal Header */}
-        <div className="modal-header">
-          <div className="flex items-center gap-2.5">
-            <div className="p-2 rounded-xl bg-blue-500/10 text-blue-400">
-              <ShieldCheck size={20} />
+        <div className="save-guest-header">
+          <div className="flex items-center gap-3">
+            <div className="save-guest-header-badge">
+              <ShieldCheck size={22} />
             </div>
             <div>
-              <h3 className="text-base font-bold text-slate-100">Profil dauerhaft sichern</h3>
-              <p className="text-xs text-muted">Erstelle ein Konto, um deine Links online zu speichern</p>
+              <h3 className="text-base font-bold text-slate-100 m-0">Profil dauerhaft sichern</h3>
+              <p className="text-xs text-slate-400 m-0 mt-0.5">
+                Kostenlos anmelden, um deine Seite weltweit zu veröffentlichen
+              </p>
             </div>
           </div>
           <button
@@ -73,28 +78,30 @@ export function SaveGuestModal({ profile, onAuthenticatedAndSave, onClose }) {
             className="btn btn-ghost btn-icon p-1.5"
             onClick={onClose}
             title="Schließen"
+            aria-label="Schließen"
           >
             <X size={18} />
           </button>
         </div>
 
         {/* Modal Body */}
-        <div className="modal-body p-5 space-y-4">
-          <div className="bg-slate-900/60 rounded-xl p-3.5 border border-slate-800 text-xs text-slate-300 space-y-1.5">
-            <div className="flex items-center gap-2 text-emerald-400 font-semibold">
-              <Sparkles size={14} />
+        <div className="save-guest-body">
+          {/* Info Banner */}
+          <div className="save-guest-banner">
+            <div className="save-guest-banner-title">
+              <Sparkles size={15} />
               <span>Dein aktueller Entwurf bleibt zu 100% erhalten!</span>
             </div>
-            <p className="text-slate-400">
-              Sobald du dich anmeldest oder registrierst, werden all deine bisher erstellten Links, Designs und Farben direkt in deine persönliche Cloud übernommen und gespeichert.
+            <p className="save-guest-banner-text">
+              Alle bisher angelegten Links, Texte und Designs werden direkt in dein persönliches Konto übertragen.
             </p>
           </div>
 
-          {/* SSO Buttons */}
-          <div className="auth-sso-group mb-3 space-y-2">
+          {/* Social OAuth Buttons */}
+          <div className="save-guest-sso-grid">
             <button
               type="button"
-              className="btn-google w-full"
+              className="save-guest-btn-google"
               onClick={() => handleOAuthAuth('Google', loginWithGoogle)}
               disabled={loading}
             >
@@ -125,7 +132,7 @@ export function SaveGuestModal({ profile, onAuthenticatedAndSave, onClose }) {
 
             <button
               type="button"
-              className="btn-github w-full"
+              className="save-guest-btn-github"
               onClick={() => handleOAuthAuth('GitHub', loginWithGithub)}
               disabled={loading}
             >
@@ -140,7 +147,7 @@ export function SaveGuestModal({ profile, onAuthenticatedAndSave, onClose }) {
             </button>
           </div>
 
-          <div className="auth-separator my-3">
+          <div className="save-guest-divider">
             <span>oder mit E-Mail</span>
           </div>
 
@@ -153,15 +160,15 @@ export function SaveGuestModal({ profile, onAuthenticatedAndSave, onClose }) {
             </div>
           )}
 
-          <form onSubmit={handleEmailAuth} className="space-y-3">
+          <form onSubmit={handleEmailAuth} className="save-guest-form">
             {isRegister && (
-              <div className="form-group mb-0">
-                <label className="form-label text-xs">Name</label>
-                <div className="input-with-icon">
-                  <User size={15} className="input-icon text-muted" />
+              <div className="save-guest-input-group">
+                <label className="save-guest-label">Name</label>
+                <div className="save-guest-input-wrapper">
+                  <User size={15} className="save-guest-input-icon" />
                   <input
                     type="text"
-                    className="form-input text-sm py-2"
+                    className="save-guest-input"
                     placeholder="Dein Name"
                     value={displayName}
                     onChange={(e) => setDisplayName(e.target.value)}
@@ -170,13 +177,13 @@ export function SaveGuestModal({ profile, onAuthenticatedAndSave, onClose }) {
               </div>
             )}
 
-            <div className="form-group mb-0">
-              <label className="form-label text-xs">E-Mail-Adresse</label>
-              <div className="input-with-icon">
-                <Mail size={15} className="input-icon text-muted" />
+            <div className="save-guest-input-group">
+              <label className="save-guest-label">E-Mail-Adresse</label>
+              <div className="save-guest-input-wrapper">
+                <Mail size={15} className="save-guest-input-icon" />
                 <input
                   type="email"
-                  className="form-input text-sm py-2"
+                  className="save-guest-input"
                   placeholder="name@example.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
@@ -185,13 +192,13 @@ export function SaveGuestModal({ profile, onAuthenticatedAndSave, onClose }) {
               </div>
             </div>
 
-            <div className="form-group mb-0">
-              <label className="form-label text-xs">Passwort</label>
-              <div className="input-with-icon">
-                <Lock size={15} className="input-icon text-muted" />
+            <div className="save-guest-input-group">
+              <label className="save-guest-label">Passwort</label>
+              <div className="save-guest-input-wrapper">
+                <Lock size={15} className="save-guest-input-icon" />
                 <input
                   type="password"
-                  className="form-input text-sm py-2"
+                  className="save-guest-input"
                   placeholder={isRegister ? 'Mindestens 6 Zeichen' : '••••••••'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
@@ -203,16 +210,16 @@ export function SaveGuestModal({ profile, onAuthenticatedAndSave, onClose }) {
 
             <button
               type="submit"
-              className="btn btn-primary btn-full py-2.5 mt-2 font-medium"
+              className="save-guest-submit-btn"
               disabled={loading}
             >
               {loading ? (
                 <>
                   <Loader2 size={16} className="spin" />
-                  <span>Wird verknüpft …</span>
+                  <span>Wird synchronisiert …</span>
                 </>
               ) : isRegister ? (
-                'Kostenlos registrieren & Profil sichern'
+                'Konto erstellen & Profil sichern'
               ) : (
                 'Anmelden & Profil synchronisieren'
               )}
@@ -220,14 +227,14 @@ export function SaveGuestModal({ profile, onAuthenticatedAndSave, onClose }) {
 
             <button
               type="button"
-              className="auth-toggle-btn text-xs mt-1"
+              className="save-guest-toggle"
               onClick={() => {
                 setError('');
                 setIsRegister(!isRegister);
               }}
             >
               {isRegister
-                ? 'Bereits registriert? Hier einloggen'
+                ? 'Bereits registriert? Hier anmelden'
                 : 'Neu hier? Kostenlos registrieren'}
             </button>
           </form>
@@ -236,3 +243,4 @@ export function SaveGuestModal({ profile, onAuthenticatedAndSave, onClose }) {
     </div>
   );
 }
+

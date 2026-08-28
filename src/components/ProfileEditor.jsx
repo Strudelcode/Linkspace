@@ -224,7 +224,7 @@ export function ProfileEditor({ profile, setProfile, uid, initialUsername }) {
             </div>
 
             <div className="url-input-unit">
-              <span className="url-slash-prefix">/</span>
+              <span className="url-slash-prefix">/#/</span>
               <input
                 id="input-username"
                 type="text"

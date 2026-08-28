@@ -12,7 +12,7 @@ export function QrCodeModal({ username, displayName, avatarUrl, onClose }) {
   const canvasRef = useRef(null);
 
   const cleanBase = customOrigin.replace(/\/+$/, '');
-  const profileUrl = `${cleanBase}/${username}`;
+  const profileUrl = cleanBase.includes('#') ? `${cleanBase}/${username}` : `${cleanBase}/#/${username}`;
 
   useEffect(() => {
     if (!username) return;

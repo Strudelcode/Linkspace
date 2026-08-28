@@ -5,9 +5,9 @@
     <title>Linkspace</title>
     <script type="text/javascript">
       // GitHub Pages Single Page Application redirect script
-      // Redirects 404 requests on subpaths back to index.html with query/hash
-      var pathSegmentsToKeep = 1;
+      // If deployed on user page root (e.g. strudelcode.github.io/user), pathSegmentsToKeep is 0.
       var l = window.location;
+      var pathSegmentsToKeep = (l.hostname.endsWith('github.io') && l.pathname.indexOf('/linkspace') === 0) ? 1 : 0;
       l.replace(
         l.protocol + '//' + l.hostname + (l.port ? ':' + l.port : '') +
         l.pathname.split('/').slice(0, 1 + pathSegmentsToKeep).join('/') + '/?/' +

@@ -17,7 +17,7 @@ export function Header({
 }) {
   const [showQrModal, setShowQrModal] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
-  const publicUrl = profile.username ? `#/${profile.username}` : null;
+  const publicUrl = profile.username ? `/${profile.username}` : null;
 
   const handleConfirmLogout = () => {
     setShowLogoutConfirm(false);

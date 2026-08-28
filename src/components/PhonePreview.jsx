@@ -44,8 +44,8 @@ export function PhonePreview({ profile }) {
   const handleCopyLink = (e) => {
     e.stopPropagation();
     if (!profile.username) return;
-    const cleanOrigin = window.location.origin;
-    const url = cleanOrigin.includes('#') ? `${cleanOrigin}/${profile.username}` : `${cleanOrigin}/#/${profile.username}`;
+    const cleanOrigin = window.location.origin.replace(/\/+$/, '');
+    const url = `${cleanOrigin}/${profile.username}`;
     navigator.clipboard.writeText(url);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);

@@ -17,6 +17,7 @@ import { DesignEditor } from './components/DesignEditor';
 import { PhonePreview } from './components/PhonePreview';
 import { PublicProfile } from './pages/PublicProfile';
 import { Smartphone, Edit3, Loader2, MessageSquare, ExternalLink, Sparkles, Heart } from 'lucide-react';
+import { getAppBasename } from './utils/urlHelper';
 import './styles.css';
 
 function Dashboard() {
@@ -312,19 +313,21 @@ class ErrorBoundary extends React.Component {
 
 function App() {
   return (
-    <ErrorBoundary>
-      <Routes>
-        <Route path="/" element={<Dashboard />} />
-        <Route path="/:username" element={<PublicProfile />} />
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-    </ErrorBoundary>
+    <Routes>
+      <Route path="/" element={<Dashboard />} />
+      <Route path="/:username" element={<PublicProfile />} />
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
   );
 }
 
+const appBasename = getAppBasename();
+
 createRoot(document.getElementById('root')).render(
-  <BrowserRouter>
-    <App />
-  </BrowserRouter>
+  <ErrorBoundary>
+    <BrowserRouter basename={appBasename}>
+      <App />
+    </BrowserRouter>
+  </ErrorBoundary>
 );
 

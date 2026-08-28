@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import { Logo } from './Logo';
 import { DISCORD_SUPPORT_URL } from '../constants';
 import { QrCodeModal } from './QrCodeModal';
+import { getPublicProfileUrl } from '../utils/urlHelper';
 
 export function Header({
   profile,
@@ -17,7 +18,7 @@ export function Header({
 }) {
   const [showQrModal, setShowQrModal] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
-  const publicUrl = profile.username ? `/${profile.username}` : null;
+  const publicFullUrl = profile.username ? getPublicProfileUrl(profile.username) : null;
 
   const handleConfirmLogout = () => {
     setShowLogoutConfirm(false);
@@ -66,7 +67,7 @@ export function Header({
           </span>
         )}
 
-        {publicUrl && (
+        {publicFullUrl && (
           <button
             type="button"
             className="btn btn-secondary btn-sm header-qr-btn"
@@ -80,9 +81,9 @@ export function Header({
           </button>
         )}
 
-        {publicUrl ? (
+        {publicFullUrl ? (
           <a
-            href={publicUrl}
+            href={publicFullUrl}
             target="_blank"
             rel="noopener noreferrer"
             className="btn btn-secondary btn-sm header-live-btn"

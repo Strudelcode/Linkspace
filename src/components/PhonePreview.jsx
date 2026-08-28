@@ -5,6 +5,7 @@ import { LinkIcon } from './LinkIcon';
 import { Logo } from './Logo';
 import { applyCustomFont, getFontFamilyString, computeButtonStyle } from '../utils/fontLoader';
 import { QrCodeModal } from './QrCodeModal';
+import { getPublicProfileUrl } from '../utils/urlHelper';
 
 export function PhonePreview({ profile }) {
   const [copied, setCopied] = useState(false);
@@ -44,8 +45,7 @@ export function PhonePreview({ profile }) {
   const handleCopyLink = (e) => {
     e.stopPropagation();
     if (!profile.username) return;
-    const cleanOrigin = window.location.origin.replace(/\/+$/, '');
-    const url = `${cleanOrigin}/${profile.username}`;
+    const url = getPublicProfileUrl(profile.username);
     navigator.clipboard.writeText(url);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);

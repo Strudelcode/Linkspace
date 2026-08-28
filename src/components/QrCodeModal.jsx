@@ -2,17 +2,15 @@ import React, { useEffect, useRef, useState } from 'react';
 import QRCode from 'qrcode';
 import { X, Download, Copy, Check, Sparkles, ExternalLink, Globe, Sliders } from 'lucide-react';
 import { Logo } from './Logo';
+import { getAppBaseUrl, getPublicProfileUrl } from '../utils/urlHelper';
 
 export function QrCodeModal({ username, displayName, avatarUrl, onClose }) {
   const [copied, setCopied] = useState(false);
-  const [customOrigin, setCustomOrigin] = useState(
-    typeof window !== 'undefined' ? window.location.origin : 'https://linkspace.dev'
-  );
+  const [customOrigin, setCustomOrigin] = useState(getAppBaseUrl());
   const [showDomainConfig, setShowDomainConfig] = useState(false);
   const canvasRef = useRef(null);
 
-  const cleanBase = customOrigin.replace(/\/+$/, '');
-  const profileUrl = `${cleanBase}/${username}`;
+  const profileUrl = getPublicProfileUrl(username, customOrigin);
 
   useEffect(() => {
     if (!username) return;

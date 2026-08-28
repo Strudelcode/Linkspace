@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { User, AtSign, FileText, Upload, Image as ImageIcon, CheckCircle2, XCircle, Loader2, Trash2, Dices, Edit3, Globe, Sparkles } from 'lucide-react';
 import { uploadAvatar, checkUsernameAvailability, validateUsername } from '../firebase';
+import { getAppBasename } from '../utils/urlHelper';
 
 const COOL_USERNAME_WORDS = [
   'nova', 'zenith', 'pulse', 'pixel', 'glow', 'flow', 'cyber', 'vortex',
@@ -27,8 +28,10 @@ export function ProfileEditor({ profile, setProfile, uid, initialUsername }) {
   const [isRollingName, setIsRollingName] = useState(false);
   const fileInputRef = useRef(null);
 
-  // Current domain / origin
-  const currentHost = typeof window !== 'undefined' ? window.location.host : 'linkspace.dev';
+  // Current domain / origin path
+  const currentHost = typeof window !== 'undefined'
+    ? `${window.location.host}${getAppBasename()}`
+    : 'linkspace.dev';
 
   // Debounced username check
   useEffect(() => {
@@ -224,7 +227,7 @@ export function ProfileEditor({ profile, setProfile, uid, initialUsername }) {
             </div>
 
             <div className="url-input-unit">
-              <span className="url-slash-prefix">/#/</span>
+              <span className="url-slash-prefix">/</span>
               <input
                 id="input-username"
                 type="text"

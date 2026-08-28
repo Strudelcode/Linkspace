@@ -107,7 +107,11 @@ function Dashboard() {
   };
 
   const handleSaveClick = () => {
-    // Save profile changes immediately for all users (guests persist locally)
+    // In a guest account, clicking save prompts to secure/create a permanent account
+    if (user && (user.isGuest || user.isAnonymous || user.uid?.startsWith('guest_'))) {
+      setShowGuestSaveModal(true);
+      return;
+    }
     executeSave();
   };
 

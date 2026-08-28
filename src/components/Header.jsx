@@ -48,33 +48,35 @@ export function Header({
           id="btn-header-discord"
           title="Hilfe & Feedback im Discord Server"
         >
-          <MessageSquare size={14} className="text-indigo-400" />
-          <span className="hidden-mobile">Discord Support</span>
+          <MessageSquare size={15} className="text-indigo-400" />
+          <span className="header-btn-text-desktop">Discord Support</span>
         </a>
 
         {saveError && (
           <div className="save-error-pill" title={saveError}>
             <AlertCircle size={14} />
-            <span>{saveError}</span>
+            <span className="header-error-text">{saveError}</span>
           </div>
         )}
 
         {hasUnsavedChanges && !isSaved && !isSaving && (
-          <span className="unsaved-indicator">
-            Ungespeicherte Änderungen
+          <span className="unsaved-indicator header-unsaved-badge" title="Ungespeicherte Änderungen">
+            <span className="unsaved-dot" />
+            <span className="header-btn-text-desktop">Ungespeichert</span>
           </span>
         )}
 
         {publicUrl && (
           <button
             type="button"
-            className="btn btn-secondary btn-sm"
+            className="btn btn-secondary btn-sm header-qr-btn"
             onClick={() => setShowQrModal(true)}
             title="QR-Code anzeigen"
             id="btn-header-qr"
+            aria-label="QR-Code"
           >
             <QrCode size={14} />
-            <span className="hidden-mobile">QR-Code</span>
+            <span className="header-btn-text-desktop">QR-Code</span>
           </button>
         )}
 
@@ -83,23 +85,26 @@ export function Header({
             href={publicUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="btn btn-secondary btn-sm"
+            className="btn btn-secondary btn-sm header-live-btn"
             id="btn-open-live-preview"
+            title="Öffentliche Seite im neuen Tab öffnen"
           >
             <ExternalLink size={14} />
-            <span>Öffentliche Seite</span>
+            <span className="header-btn-text-desktop">Öffentliche Seite</span>
+            <span className="header-btn-text-tablet">Seite</span>
           </a>
         ) : (
           <span className="text-muted text-xs hidden-mobile">
-            Wähle einen Benutzernamen zur Vorschau
+            Wähle Benutzernamen zur Vorschau
           </span>
         )}
 
         <button
-          className={`btn ${isSaved ? 'btn-success' : 'btn-primary'} btn-sm`}
+          className={`btn ${isSaved ? 'btn-success' : 'btn-primary'} btn-sm header-save-btn`}
           id="btn-save-all"
           onClick={onSave}
           disabled={isSaving}
+          title="Alle Änderungen speichern"
         >
           {isSaving ? (
             <>
@@ -121,11 +126,11 @@ export function Header({
 
         {user && (
           <div className="user-menu">
-            <span className="user-email hidden-mobile" title={user.email}>
+            <span className="user-email header-btn-text-desktop" title={user.email}>
               {user.displayName || user.email?.split('@')[0]}
             </span>
             <button
-              className="btn-icon"
+              className="btn-icon header-logout-btn"
               id="btn-logout"
               onClick={() => setShowLogoutConfirm(true)}
               title="Abmelden"

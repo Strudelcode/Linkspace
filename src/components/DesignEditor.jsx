@@ -16,7 +16,9 @@ import {
   MousePointer,
   SunMedium,
   Compass,
-  FileCode
+  FileCode,
+  X,
+  ChevronRight
 } from 'lucide-react';
 import {
   THEME_PRESETS,
@@ -31,7 +33,8 @@ import {
 import { uploadBackgroundImage } from '../firebase';
 import { applyCustomFont } from '../utils/fontLoader';
 
-export function DesignEditor({ styling, setStyling, uid = '' }) {
+export function DesignEditor({ styling, setStyling, uid = '', onToast }) {
+  const [showPresetModal, setShowPresetModal] = useState(false);
   const [uploadingBg, setUploadingBg] = useState(false);
   const [bgUploadError, setBgUploadError] = useState('');
   const [fontUploadError, setFontUploadError] = useState('');
@@ -40,11 +43,27 @@ export function DesignEditor({ styling, setStyling, uid = '' }) {
   const bgFileInputRef = useRef(null);
   const fontFileInputRef = useRef(null);
 
+  // Find currently active preset if matched
+  const activePreset = THEME_PRESETS.find(
+    (p) =>
+      styling.background === p.styling.background &&
+      styling.button === p.styling.button &&
+      styling.font === p.styling.font
+  );
+
   const applyPreset = (preset) => {
     setStyling((prev) => ({
       ...prev,
       ...preset.styling
     }));
+    if (onToast) {
+      onToast({
+        type: 'success',
+        title: 'Design-Vorlage angewendet',
+        message: `Vorlage "${preset.name}" wurde erfolgreich übernommen.`,
+        duration: 3000
+      });
+    }
   };
 
   const updateField = (key, value) => {
@@ -171,67 +190,159 @@ export function DesignEditor({ styling, setStyling, uid = '' }) {
       </div>
 
       <div className="panel-body">
-        {/* 1. Curated Theme Presets */}
+        {/* 1. Curated Theme Presets Trigger & Active Summary */}
         <div className="form-group">
           <div className="label-with-hint">
             <label className="label-with-icon">
               <Sparkles size={14} className="text-amber-400" />
               <span>Design-Vorlagen</span>
             </label>
-            <span className="text-muted text-xs">1-Klick Theme Wechsel</span>
+            <span className="text-muted text-xs">Vorgefertigte Themes</span>
           </div>
 
-          <div className="presets-grid" id="theme-presets-list">
-            {THEME_PRESETS.map((preset) => {
-              const isSelected =
-                styling.background === preset.styling.background &&
-                styling.button === preset.styling.button &&
-                styling.font === preset.styling.font;
-
-              return (
-                <button
-                  key={preset.id}
-                  type="button"
-                  className={`preset-card-pro ${isSelected ? 'active-preset-glow' : ''}`}
-                  onClick={() => applyPreset(preset)}
+          <div className="preset-trigger-card" id="preset-trigger-banner">
+            <div className="preset-trigger-left">
+              <div
+                className="preset-mini-chip-preview"
+                style={{
+                  background:
+                    styling.backgroundType === 'gradient'
+                      ? `linear-gradient(${styling.gradientAngle || 180}deg, ${styling.gradientStart || '#090a0f'}, ${styling.gradientEnd || '#1e1b4b'})`
+                      : styling.background || '#090a0f'
+                }}
+              >
+                <span
+                  className="preset-mini-chip-btn"
+                  style={{
+                    background: styling.button || '#181b24',
+                    color: styling.buttonText || '#f8fafc',
+                    borderColor: styling.buttonBorder || 'transparent'
+                  }}
                 >
-                  <div
-                    className="preset-preview-canvas"
-                    style={{
-                      background:
-                        preset.styling.backgroundType === 'gradient'
-                          ? `linear-gradient(${preset.styling.gradientAngle || 180}deg, ${preset.styling.gradientStart}, ${preset.styling.gradientEnd})`
-                          : preset.styling.background
-                    }}
-                  >
-                    <div
-                      className="preset-mini-btn"
-                      style={{
-                        background: preset.styling.button,
-                        color: preset.styling.buttonText,
-                        border: `1px solid ${preset.styling.buttonBorder || 'transparent'}`,
-                        borderRadius: `${preset.styling.radius || 8}px`
-                      }}
-                    >
-                      <span>Aa</span>
-                    </div>
+                  Aa
+                </span>
+              </div>
 
-                    {isSelected && (
-                      <div className="preset-selected-badge">
-                        <Check size={11} />
-                      </div>
-                    )}
-                  </div>
+              <div className="preset-trigger-info">
+                <div className="flex items-center gap-2">
+                  <span className="preset-active-title">
+                    {activePreset ? activePreset.name : 'Individuelles Design'}
+                  </span>
+                  <span className="preset-active-badge">Aktiv</span>
+                </div>
+                <span className="preset-trigger-desc">
+                  {activePreset ? activePreset.desc : 'Schriftart, Farben & Buttons angepasst'}
+                </span>
+              </div>
+            </div>
 
-                  <div className="preset-meta-info">
-                    <span className="preset-meta-title">{preset.name}</span>
-                    <span className="preset-meta-desc">{preset.desc}</span>
-                  </div>
-                </button>
-              );
-            })}
+            <button
+              type="button"
+              className="btn btn-primary btn-sm preset-choose-btn"
+              id="btn-open-theme-presets"
+              onClick={() => setShowPresetModal(true)}
+            >
+              <Sparkles size={14} />
+              <span>Vorlage wählen</span>
+            </button>
           </div>
         </div>
+
+        {/* Design-Vorlagen Modal */}
+        {showPresetModal && (
+          <div className="modal-backdrop" onClick={() => setShowPresetModal(false)}>
+            <div
+              className="modal-content preset-picker-dialog"
+              id="preset-picker-modal"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="modal-header">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 rounded-xl bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                    <Sparkles size={18} />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-white">Design-Vorlagen</h3>
+                    <p className="text-xs text-slate-400">Wähle mit 1 Klick ein abgestimmtes Theme aus</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  className="modal-close-btn"
+                  onClick={() => setShowPresetModal(false)}
+                  aria-label="Schließen"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              <div className="preset-picker-body">
+                <div className="presets-modal-grid">
+                  {THEME_PRESETS.map((preset) => {
+                    const isSelected =
+                      styling.background === preset.styling.background &&
+                      styling.button === preset.styling.button &&
+                      styling.font === preset.styling.font;
+
+                    return (
+                      <button
+                        key={preset.id}
+                        type="button"
+                        className={`preset-card-pro ${isSelected ? 'active-preset-glow' : ''}`}
+                        onClick={() => applyPreset(preset)}
+                      >
+                        <div
+                          className="preset-preview-canvas"
+                          style={{
+                            background:
+                              preset.styling.backgroundType === 'gradient'
+                                ? `linear-gradient(${preset.styling.gradientAngle || 180}deg, ${preset.styling.gradientStart}, ${preset.styling.gradientEnd})`
+                                : preset.styling.background
+                          }}
+                        >
+                          <div
+                            className="preset-mini-btn"
+                            style={{
+                              background: preset.styling.button,
+                              color: preset.styling.buttonText,
+                              border: `1px solid ${preset.styling.buttonBorder || 'transparent'}`,
+                              borderRadius: `${preset.styling.radius || 8}px`
+                            }}
+                          >
+                            <span>Aa</span>
+                          </div>
+
+                          {isSelected && (
+                            <div className="preset-selected-badge">
+                              <Check size={11} />
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="preset-meta-info">
+                          <span className="preset-meta-title">{preset.name}</span>
+                          <span className="preset-meta-desc">{preset.desc}</span>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="preset-picker-footer">
+                <button
+                  type="button"
+                  className="btn btn-primary w-full py-3 preset-close-btn"
+                  id="btn-close-theme-presets"
+                  onClick={() => setShowPresetModal(false)}
+                >
+                  <Check size={16} />
+                  <span>Designvorlage schließen</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* 2. Background Mode Selector */}
         <div className="form-group mt-5">

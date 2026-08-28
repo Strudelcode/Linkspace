@@ -98,6 +98,19 @@ button {
   animation: spin 1s linear infinite;
 }
 
+.center-loader {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  width: 100%;
+  background: var(--bg-app);
+  color: var(--text-main);
+  text-align: center;
+  padding: 24px;
+}
+
 @keyframes spin {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }

@@ -242,6 +242,7 @@ function Dashboard() {
             styling={profile.styling || DEFAULT_PROFILE.styling}
             setStyling={handleStylingChange}
             uid={user.uid}
+            onToast={showToast}
           />
 
           {/* Discord Community Support Card */}

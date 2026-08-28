@@ -250,7 +250,6 @@ function Dashboard() {
       {showGuestSaveModal && (
         <SaveGuestModal
           profile={profile}
-          onSaveDirectlyAsGuest={() => executeSave(user.uid)}
           onAuthenticatedAndSave={handleAuthenticatedAndSave}
           onClose={() => setShowGuestSaveModal(false)}
         />

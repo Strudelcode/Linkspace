@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import { X, ShieldCheck, Sparkles, UserPlus, LogIn, Loader2, AlertCircle, HardDrive, Check, Lock, Mail, User } from 'lucide-react';
+import { X, ShieldCheck, Sparkles, UserPlus, LogIn, Loader2, AlertCircle, Check, Lock, Mail, User } from 'lucide-react';
 import { loginWithGoogle, loginWithGithub, registerWithEmail, loginWithEmail } from '../firebase';
 import { Logo } from './Logo';
 
-export function SaveGuestModal({ profile, onSaveDirectlyAsGuest, onAuthenticatedAndSave, onClose }) {
+export function SaveGuestModal({ profile, onAuthenticatedAndSave, onClose }) {
   const [isRegister, setIsRegister] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -54,14 +54,9 @@ export function SaveGuestModal({ profile, onSaveDirectlyAsGuest, onAuthenticated
     }
   };
 
-  const handleLocalSave = () => {
-    onSaveDirectlyAsGuest();
-    onClose();
-  };
-
   return (
-    <div className="modal-overlay" id="save-guest-modal-overlay">
-      <div className="modal-content max-w-md w-full" id="save-guest-modal-card">
+    <div className="modal-backdrop" id="save-guest-modal-overlay">
+      <div className="modal-content max-w-md w-full my-auto" id="save-guest-modal-card">
         {/* Modal Header */}
         <div className="modal-header">
           <div className="flex items-center gap-2.5">
@@ -70,7 +65,7 @@ export function SaveGuestModal({ profile, onSaveDirectlyAsGuest, onAuthenticated
             </div>
             <div>
               <h3 className="text-base font-bold text-slate-100">Profil dauerhaft sichern</h3>
-              <p className="text-xs text-muted">Damit deine Links nicht im Browser verloren gehen</p>
+              <p className="text-xs text-muted">Erstelle ein Konto, um deine Links online zu speichern</p>
             </div>
           </div>
           <button
@@ -84,19 +79,19 @@ export function SaveGuestModal({ profile, onSaveDirectlyAsGuest, onAuthenticated
         </div>
 
         {/* Modal Body */}
-        <div className="modal-body space-y-4">
+        <div className="modal-body p-5 space-y-4">
           <div className="bg-slate-900/60 rounded-xl p-3.5 border border-slate-800 text-xs text-slate-300 space-y-1.5">
             <div className="flex items-center gap-2 text-emerald-400 font-semibold">
               <Sparkles size={14} />
               <span>Dein aktueller Entwurf bleibt zu 100% erhalten!</span>
             </div>
             <p className="text-slate-400">
-              Wenn du dich anmeldest oder registrierst, werden all deine Links, Designs und Farben direkt in deine persönliche Cloud übernommen.
+              Sobald du dich anmeldest oder registrierst, werden all deine bisher erstellten Links, Designs und Farben direkt in deine persönliche Cloud übernommen und gespeichert.
             </p>
           </div>
 
           {/* SSO Buttons */}
-          <div className="auth-sso-group mb-3">
+          <div className="auth-sso-group mb-3 space-y-2">
             <button
               type="button"
               className="btn-google w-full"
@@ -236,18 +231,6 @@ export function SaveGuestModal({ profile, onSaveDirectlyAsGuest, onAuthenticated
                 : 'Neu hier? Kostenlos registrieren'}
             </button>
           </form>
-
-          {/* Fallback Option: Just save locally */}
-          <div className="pt-3 border-t border-slate-800/80">
-            <button
-              type="button"
-              className="btn btn-secondary btn-full py-2 text-xs flex items-center justify-center gap-2"
-              onClick={handleLocalSave}
-            >
-              <HardDrive size={14} className="text-slate-400" />
-              <span>Nur lokal im Browser speichern (ohne Account)</span>
-            </button>
-          </div>
         </div>
       </div>
     </div>

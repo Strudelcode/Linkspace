@@ -2166,7 +2166,8 @@ button {
 }
 
 /* Modals */
-.modal-backdrop {
+.modal-backdrop,
+.modal-overlay {
   position: fixed;
   inset: 0;
   background: rgba(4, 6, 10, 0.75);
@@ -2177,6 +2178,7 @@ button {
   z-index: 1000;
   padding: 16px;
   animation: fadeIn 0.15s ease;
+  overflow-y: auto;
 }
 
 .modal-content {

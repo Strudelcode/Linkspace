@@ -412,8 +412,8 @@ export async function saveUserProfileTransaction(uid, profileData, oldUsername =
       return newUsername;
     }
 
-    // Username changes remain atomic: claim the new name and update the profile together.
-    const oldUsernameRef = doc(db, 'usernames', normalizedOld);
+    // Username changes or first-time creation: claim the name and update the profile together.
+    const oldUsernameRef = normalizedOld ? doc(db, 'usernames', normalizedOld) : null;
     await withTimeout(runTransaction(db, async (transaction) => {
       const newSnap = await transaction.get(newUsernameRef);
       if (newSnap.exists()) {
@@ -423,10 +423,10 @@ export async function saveUserProfileTransaction(uid, profileData, oldUsername =
         }
       }
 
-      const oldSnap = normalizedOld ? await transaction.get(oldUsernameRef) : null;
+      const oldSnap = oldUsernameRef ? await transaction.get(oldUsernameRef) : null;
 
       transaction.set(newUsernameRef, { uid, updatedAt: Date.now() });
-      if (oldSnap?.exists() && oldSnap.data()?.uid === uid) {
+      if (oldUsernameRef && oldSnap?.exists() && oldSnap.data()?.uid === uid) {
         transaction.delete(oldUsernameRef);
       }
       transaction.set(userProfileRef, completePayload);

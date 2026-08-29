@@ -211,7 +211,7 @@ function translateAuthError(code) {
     case 'auth/cancelled-popup-request': return 'Anmeldeanfrage abgebrochen.';
     case 'auth/account-exists-with-different-credential': return 'Ein Account mit dieser E-Mail existiert bereits über einen anderen Login-Anbieter.';
     case 'auth/too-many-requests': return 'Zu viele Anmeldeversuche. Bitte warte kurz oder nutze einen anderen Login-Weg.';
-    case 'auth/unauthorized-domain': return 'Diese Domain (z. B. strudelcode.github.io) muss in der Firebase Console unter "Authentication > Settings > Authorized Domains" hinzugefügt werden.';
+    case 'auth/unauthorized-domain': return 'Diese Domain (z. B. linkspacee.netlify.app) muss in der Firebase Console unter "Authentication > Settings > Authorized Domains" freigeschaltet werden. Tipp: Nutze den Gast-Modus oder schalte die Netlify-Domain in Firebase frei.';
     case 'auth/network-request-failed': return 'Netzwerkfehler. Bitte Internetverbindung prüfen.';
     case 'auth/api-key-not-valid.-please-pass-a-valid-api-key.':
     case 'auth/api-key-not-valid': return 'Firebase API-Schlüssel ist nicht gültig.';
@@ -292,30 +292,44 @@ export async function checkUsernameAvailability(username, currentUid) {
   if (!validation.valid) return { available: false, reason: validation.message };
   const norm = validation.username;
 
+  // 1. Fast local check first
+  const localUsernames = getLocalUsernames();
+  const ownerUid = localUsernames[norm];
+  if (ownerUid && ownerUid !== currentUid) {
+    return { available: false, reason: 'Dieser Benutzername ist bereits vergeben.' };
+  }
+
+  // 2. Quick Firestore check with a short 2.5s timeout
   if (db) {
     try {
-      const snap = await withTimeout(getDoc(doc(db, 'usernames', norm)), 15000, 'Username check timeout');
+      const snap = await withTimeout(getDoc(doc(db, 'usernames', norm)), 2500, 'Username check timeout');
       if (!snap.exists()) return { available: true, username: norm };
       const data = snap.data();
-      const ownerId = data.uid || data.userId || data.ownerUid;
-      if (ownerId === currentUid) return { available: true, isCurrentOwner: true, username: norm };
+      const dbOwnerId = data.uid || data.userId || data.ownerUid;
+      if (dbOwnerId === currentUid) return { available: true, isCurrentOwner: true, username: norm };
       return { available: false, reason: 'Dieser Benutzername ist bereits vergeben.' };
     } catch (error) {
-      console.error('Firestore username availability check failed:', error);
-      return { available: false, reason: 'Verfügbarkeit konnte gerade nicht geprüft werden. Bitte erneut versuchen.' };
+      console.warn('Firestore username availability check fell back to local state:', error?.message);
+      // Fallback: don't block the user if Firestore is slow or offline
+      return { available: true, username: norm, fromLocalFallback: true };
     }
   }
 
-  const localUsernames = getLocalUsernames();
-  const ownerUid = localUsernames[norm];
   if (!ownerUid || ownerUid === currentUid) return { available: true, username: norm };
   return { available: false, reason: 'Dieser Benutzername ist bereits vergeben.' };
 }
 
+export function getCachedUserProfile(uid) {
+  if (!uid) return null;
+  return getLocalProfiles()[uid] || null;
+}
+
 export async function getUserProfile(uid) {
+  const localData = getLocalProfiles()[uid];
+  
   if (db && !uid.startsWith('guest_')) {
     try {
-      const snap = await withTimeout(getDoc(doc(db, 'profiles', uid)), 15000, 'Firestore profile load timeout');
+      const snap = await withTimeout(getDoc(doc(db, 'profiles', uid)), 3500, 'Firestore profile load timeout');
       if (snap.exists()) {
         const data = snap.data();
         const local = getLocalProfiles();
@@ -323,12 +337,14 @@ export async function getUserProfile(uid) {
         saveLocalProfiles(local);
         return data;
       }
-      return null;
+      // If document doesn't exist yet on remote, return local if any
+      return localData || null;
     } catch (error) {
-      console.warn('Firestore getUserProfile failed; using local cache:', error);
+      console.warn('Firestore getUserProfile timed out or failed; using local cache:', error?.message);
+      return localData || null;
     }
   }
-  return getLocalProfiles()[uid] || null;
+  return localData || null;
 }
 
 function formatFirestoreSaveError(error) {

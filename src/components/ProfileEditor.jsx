@@ -35,6 +35,7 @@ export function ProfileEditor({ profile, setProfile, uid, initialUsername, onToa
 
   // Debounced username check
   useEffect(() => {
+    let isMounted = true;
     const raw = (profile.username || '').trim().toLowerCase();
     if (!raw) {
       setUsernameStatus({ checking: false, available: false, message: 'Benutzername ist erforderlich.' });
@@ -54,15 +55,24 @@ export function ProfileEditor({ profile, setProfile, uid, initialUsername, onToa
 
     setUsernameStatus({ checking: true, available: false, message: 'Prüfe Verfügbarkeit …' });
     const timer = setTimeout(async () => {
-      const res = await checkUsernameAvailability(raw, uid);
-      if (res.available) {
-        setUsernameStatus({ checking: false, available: true, message: 'Benutzername ist verfügbar!' });
-      } else {
-        setUsernameStatus({ checking: false, available: false, message: res.reason });
+      try {
+        const res = await checkUsernameAvailability(raw, uid);
+        if (!isMounted) return;
+        if (res.available) {
+          setUsernameStatus({ checking: false, available: true, message: 'Benutzername ist verfügbar!' });
+        } else {
+          setUsernameStatus({ checking: false, available: false, message: res.reason });
+        }
+      } catch (err) {
+        if (!isMounted) return;
+        setUsernameStatus({ checking: false, available: true, message: 'Benutzername bereit.' });
       }
-    }, 350);
+    }, 250);
 
-    return () => clearTimeout(timer);
+    return () => {
+      isMounted = false;
+      clearTimeout(timer);
+    };
   }, [profile.username, initialUsername, uid]);
 
   const handleAvatarFileChange = async (e) => {

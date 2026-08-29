@@ -5,6 +5,7 @@ import {
   subscribeToAuth,
   logoutUser,
   getUserProfile,
+  getCachedUserProfile,
   saveUserProfileTransaction
 } from './firebase';
 import { DEFAULT_PROFILE, DISCORD_SUPPORT_URL } from './constants';
@@ -60,7 +61,32 @@ function Dashboard() {
       setAuthLoading(false);
 
       if (currentUser) {
-        setProfileLoading(true);
+        // Fast path: load local cache immediately
+        const cached = getCachedUserProfile(currentUser.uid);
+        if (cached) {
+          setProfile({
+            ...DEFAULT_PROFILE,
+            ...cached,
+            links: cached.links || DEFAULT_PROFILE.links,
+            styling: { ...DEFAULT_PROFILE.styling, ...(cached.styling || {}) }
+          });
+          setInitialUsername(cached.username || '');
+        } else {
+          // Pre-seed instantly with user's info so UI doesn't hang
+          const generatedUsername = (currentUser.displayName || currentUser.email?.split('@')[0] || 'creator')
+            .toLowerCase()
+            .replace(/[^a-z0-9_.-]/g, '')
+            .slice(0, 20);
+
+          setProfile((prev) => ({
+            ...DEFAULT_PROFILE,
+            displayName: currentUser.displayName || prev.displayName || 'Mein Name',
+            username: generatedUsername || 'creator',
+            avatarUrl: currentUser.photoURL || prev.avatarUrl || ''
+          }));
+          setProfileLoading(true);
+        }
+
         try {
           const remoteProfile = await getUserProfile(currentUser.uid);
           if (remoteProfile) {
@@ -71,29 +97,9 @@ function Dashboard() {
               styling: { ...DEFAULT_PROFILE.styling, ...(remoteProfile.styling || {}) }
             });
             setInitialUsername(remoteProfile.username || '');
-          } else {
-            // First time setup: seed with user's info
-            const generatedUsername = (currentUser.displayName || currentUser.email?.split('@')[0] || 'creator')
-              .toLowerCase()
-              .replace(/[^a-z0-9_.-]/g, '')
-              .slice(0, 20);
-
-            const initial = {
-              ...DEFAULT_PROFILE,
-              displayName: currentUser.displayName || 'Mein Name',
-              username: generatedUsername || 'creator',
-              avatarUrl: currentUser.photoURL || ''
-            };
-            setProfile(initial);
-            setInitialUsername('');
           }
         } catch (err) {
-          console.error("Error loading user profile:", err);
-          showToast({
-            type: 'warning',
-            title: 'Hinweis',
-            message: 'Profil konnte nicht von Firestore geladen werden. Lokale Version wird verwendet.'
-          });
+          console.warn("Background remote profile fetch notice:", err);
         } finally {
           setProfileLoading(false);
         }
@@ -171,7 +177,7 @@ function Dashboard() {
     setHasUnsavedChanges(true);
   };
 
-  if (authLoading || (user && profileLoading)) {
+  if (authLoading) {
     return (
       <div className="center-loader" id="app-loading-spinner">
         <Loader2 size={32} className="spin text-primary" />

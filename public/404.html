@@ -7,9 +7,10 @@
       // GitHub Pages Single Page Application redirect script
       var l = window.location;
       var isGithubPages = l.hostname.endsWith('github.io');
-      var pathSegmentsToKeep = isGithubPages ? 1 : 0;
-      var repoBase = l.pathname.split('/').slice(0, 1 + pathSegmentsToKeep).join('/');
-      var routePath = l.pathname.slice(1).split('/').slice(pathSegmentsToKeep).join('/').replace(/&/g, '~and~');
+      var pathParts = l.pathname.split('/').filter(Boolean);
+      var pathSegmentsToKeep = (isGithubPages && pathParts.length >= 1) ? 1 : 0;
+      var repoBase = (pathSegmentsToKeep === 1) ? '/' + pathParts[0] : '';
+      var routePath = pathParts.slice(pathSegmentsToKeep).join('/').replace(/&/g, '~and~');
       l.replace(
         l.protocol + '//' + l.hostname + (l.port ? ':' + l.port : '') +
         repoBase + '/?/' + routePath +
@@ -21,3 +22,4 @@
   <body>
   </body>
 </html>
+

@@ -350,23 +350,26 @@ export async function getUserProfile(uid) {
 function formatFirestoreSaveError(error) {
   const code = error?.code || '';
   const message = error?.message || '';
-  if (code === 'permission-denied') {
-    return 'Firestore verweigert das Speichern. Bitte prüfe die Firestore-Sicherheitsregeln für das verwendete Firebase-Projekt.';
+  if (code === 'permission-denied' || message.includes('permission-denied') || message.includes('Missing or insufficient permissions')) {
+    return 'Firestore verweigert die Speicherung (Berechtigungsfehler). Bitte melde dich einmal ab und erneut an.';
   }
-  if (code === 'unauthenticated') {
-    return 'Die Anmeldung ist für Firestore nicht mehr gültig. Bitte einmal abmelden und erneut anmelden.';
+  if (code === 'unauthenticated' || message.includes('unauthenticated')) {
+    return 'Die Anmeldung ist für Firestore abgelaufen. Bitte einmal abmelden und neu anmelden.';
   }
   if (code === 'failed-precondition') {
     return 'Firestore konnte die Speicherung wegen einer Datenbank-Voraussetzung nicht abschließen. Bitte erneut versuchen.';
   }
-  if (code === 'resource-exhausted') {
-    return 'Das Profil ist zu groß für Firestore. Bitte kleinere Bilder verwenden.';
+  if (code === 'resource-exhausted' || message.includes('resource-exhausted') || message.includes('maximum allowed size') || message.includes('Quota exceeded')) {
+    return 'Das Profil ist zu groß für Firestore (max. 1 MB). Bitte Hintergrundbilder oder Icons verkleinern.';
   }
-  if (code === 'unavailable') {
-    return 'Firestore ist gerade nicht erreichbar. Bitte erneut versuchen.';
+  if (code === 'unavailable' || message.includes('unavailable') || message.includes('network-request-failed') || message.includes('client is offline')) {
+    return 'Firestore ist momentan nicht erreichbar oder du bist offline. Deine Daten wurden lokal im Browser zwischengespeichert.';
   }
-  if (message.includes('maximum allowed size')) {
-    return 'Das Profil ist zu groß für Firestore. Bitte kleinere Bilder verwenden.';
+  if (message.includes('timeout') || message.includes('Timeout')) {
+    return 'Zeitüberschreitung beim Speichern in Firestore. Bitte prüfe deine Internetverbindung und versuche es erneut.';
+  }
+  if (message) {
+    return `Fehler beim Speichern: ${message}`;
   }
   return 'Das Profil konnte nicht dauerhaft gespeichert werden. Bitte erneut versuchen.';
 }
@@ -399,24 +402,29 @@ export async function saveUserProfileTransaction(uid, profileData, oldUsername =
     updatedAt: Date.now()
   };
 
+  // Always keep local cache up to date immediately
+  cacheSavedProfile(uid, completePayload, normalizedOld, newUsername);
+
   if (uid.startsWith('guest_')) {
-    cacheSavedProfile(uid, completePayload, normalizedOld, newUsername);
     return newUsername;
   }
 
-  if (!db) throw new Error('Firebase/Firestore ist nicht verfügbar. Das Profil wurde nicht gespeichert.');
+  if (!db) {
+    throw new Error('Firebase/Firestore ist nicht initialisiert. Deine Daten sind lokal im Browser gesichert.');
+  }
+
   if (!auth?.currentUser || auth.currentUser.uid !== uid) {
-    throw new Error('Deine Anmeldung ist nicht mehr gültig. Bitte einmal abmelden und erneut anmelden.');
+    throw new Error('Deine Anmeldung ist nicht mehr aktiv. Bitte melde dich erneut an, um in der Cloud zu speichern.');
   }
 
   const userProfileRef = doc(db, 'profiles', uid);
   const newUsernameRef = doc(db, 'usernames', newUsername);
+  const usernamePayload = { uid, userId: uid, updatedAt: Date.now() };
 
   try {
-    // Most saves keep the same username. Avoid a transaction in that case.
-    // This makes ordinary profile saves much more reliable and still checks ownership.
+    // 1. If username didn't change, perform direct document sets (fast and resilient)
     if (newUsername === normalizedOld) {
-      const usernameSnap = await withTimeout(getDoc(newUsernameRef), 15000, 'Username ownership check timeout');
+      const usernameSnap = await withTimeout(getDoc(newUsernameRef), 20000, 'Username ownership check timeout');
       if (usernameSnap.exists()) {
         const existingData = usernameSnap.data();
         const existingOwner = existingData.uid || existingData.userId || existingData.ownerUid;
@@ -425,34 +433,56 @@ export async function saveUserProfileTransaction(uid, profileData, oldUsername =
         }
       }
 
-      await withTimeout(setDoc(newUsernameRef, { uid, updatedAt: Date.now() }, { merge: true }), 15000, 'Username save timeout');
-      await withTimeout(setDoc(userProfileRef, completePayload), 15000, 'Profile save timeout');
-      cacheSavedProfile(uid, completePayload, '', newUsername);
+      await withTimeout(setDoc(newUsernameRef, usernamePayload, { merge: true }), 20000, 'Username save timeout');
+      await withTimeout(setDoc(userProfileRef, completePayload), 20000, 'Profile save timeout');
       return newUsername;
     }
 
-    // Username changes or first-time creation: claim the name and update the profile together.
+    // 2. New username or changed username: verify availability and claim
     const oldUsernameRef = normalizedOld ? doc(db, 'usernames', normalizedOld) : null;
-    await withTimeout(runTransaction(db, async (transaction) => {
-      const newSnap = await transaction.get(newUsernameRef);
-      if (newSnap.exists()) {
-        const existingData = newSnap.data();
-        const existingOwner = existingData.uid || existingData.userId || existingData.ownerUid;
+    try {
+      await withTimeout(runTransaction(db, async (transaction) => {
+        const newSnap = await transaction.get(newUsernameRef);
+        if (newSnap.exists()) {
+          const existingData = newSnap.data();
+          const existingOwner = existingData.uid || existingData.userId || existingData.ownerUid;
+          if (existingOwner && existingOwner !== uid) {
+            throw new Error('Dieser Benutzername ist bereits von einem anderen Benutzer vergeben.');
+          }
+        }
+
+        const oldSnap = oldUsernameRef ? await transaction.get(oldUsernameRef) : null;
+
+        transaction.set(newUsernameRef, usernamePayload);
+        if (oldUsernameRef && oldSnap?.exists()) {
+          const oldOwner = oldSnap.data()?.uid || oldSnap.data()?.userId;
+          if (oldOwner === uid) {
+            transaction.delete(oldUsernameRef);
+          }
+        }
+        transaction.set(userProfileRef, completePayload);
+      }), 25000, 'Firestore save transaction timeout');
+    } catch (txnError) {
+      if (txnError?.message?.includes('bereits von einem anderen Benutzer vergeben')) {
+        throw txnError;
+      }
+      console.warn('[Linkspace] Transaction failed, trying direct batch/save fallback:', txnError);
+      
+      // Fallback: direct set if transaction failed due to network contention
+      const checkSnap = await withTimeout(getDoc(newUsernameRef), 15000, 'Username check timeout');
+      if (checkSnap.exists()) {
+        const existingOwner = checkSnap.data()?.uid || checkSnap.data()?.userId;
         if (existingOwner && existingOwner !== uid) {
           throw new Error('Dieser Benutzername ist bereits von einem anderen Benutzer vergeben.');
         }
       }
-
-      const oldSnap = oldUsernameRef ? await transaction.get(oldUsernameRef) : null;
-
-      transaction.set(newUsernameRef, { uid, updatedAt: Date.now() });
-      if (oldUsernameRef && oldSnap?.exists() && oldSnap.data()?.uid === uid) {
-        transaction.delete(oldUsernameRef);
+      await withTimeout(setDoc(newUsernameRef, usernamePayload), 15000, 'Username save timeout');
+      if (oldUsernameRef) {
+        try { await deleteDoc(oldUsernameRef); } catch (e) { console.warn('Old username cleanup error:', e); }
       }
-      transaction.set(userProfileRef, completePayload);
-    }), 30000, 'Firestore save transaction timeout');
+      await withTimeout(setDoc(userProfileRef, completePayload), 15000, 'Profile save timeout');
+    }
 
-    cacheSavedProfile(uid, completePayload, normalizedOld, newUsername);
     return newUsername;
   } catch (firestoreErr) {
     if (firestoreErr?.message?.includes('bereits von einem anderen Benutzer vergeben')) {

@@ -25,7 +25,8 @@ export function LinksEditor({
   uid = ''
 }) {
   const [draggedIndex, setDraggedIndex] = useState(null);
-  const [dragOverIndex, setDragOverIndex] = useState(null);
+  const [dropTarget, setDropTarget] = useState(null); // { index: number, position: 'top' | 'bottom' }
+  const [canDragId, setCanDragId] = useState(null);
   const [editingIconLinkId, setEditingIconLinkId] = useState(null);
 
   const activeModalLink = links.find((l) => l.id === editingIconLinkId);
@@ -102,30 +103,67 @@ export function LinksEditor({
   const handleDragStart = (e, index) => {
     setDraggedIndex(index);
     e.dataTransfer.effectAllowed = 'move';
-    e.dataTransfer.setData('text/plain', index);
+    e.dataTransfer.setData('text/plain', String(index));
   };
 
   const handleDragOver = (e, index) => {
     e.preventDefault();
-    if (draggedIndex === null || draggedIndex === index) return;
-    setDragOverIndex(index);
+    e.dataTransfer.dropEffect = 'move';
+    if (draggedIndex === null) return;
+
+    if (draggedIndex === index) {
+      setDropTarget(null);
+      return;
+    }
+
+    const rect = e.currentTarget.getBoundingClientRect();
+    const midY = rect.top + rect.height / 2;
+    const isTop = e.clientY < midY;
+
+    setDropTarget({ index, position: isTop ? 'top' : 'bottom' });
   };
 
-  const handleDragLeave = () => {
-    setDragOverIndex(null);
+  const handleDragLeave = (e) => {
+    // Only reset if we left the list item boundary entirely
+    if (!e.currentTarget.contains(e.relatedTarget)) {
+      setDropTarget((prev) => (prev?.index === draggedIndex ? null : prev));
+    }
   };
 
-  const handleDrop = (e, targetIndex) => {
+  const handleDrop = (e, index) => {
     e.preventDefault();
     if (draggedIndex === null) return;
-    moveLink(draggedIndex, targetIndex);
+
+    const rect = e.currentTarget.getBoundingClientRect();
+    const midY = rect.top + rect.height / 2;
+    const isTop = e.clientY < midY;
+
+    let targetIndex = index;
+    if (!isTop) {
+      targetIndex = index + 1;
+    }
+
+    // Adjust targetIndex if dragged from before target
+    if (draggedIndex < targetIndex) {
+      targetIndex -= 1;
+    }
+
+    if (draggedIndex !== targetIndex) {
+      const updated = [...links];
+      const [moved] = updated.splice(draggedIndex, 1);
+      updated.splice(targetIndex, 0, moved);
+      setLinks(updated);
+    }
+
     setDraggedIndex(null);
-    setDragOverIndex(null);
+    setDropTarget(null);
+    setCanDragId(null);
   };
 
   const handleDragEnd = () => {
     setDraggedIndex(null);
-    setDragOverIndex(null);
+    setDropTarget(null);
+    setCanDragId(null);
   };
 
   return (
@@ -160,10 +198,17 @@ export function LinksEditor({
             </button>
           </div>
         ) : (
-          <div className="links-list" id="links-sortable-container">
+          <div
+            className="links-list"
+            id="links-sortable-container"
+            onDragLeave={() => setDropTarget(null)}
+          >
             {links.map((link, index) => {
               const isDragging = draggedIndex === index;
-              const isOver = dragOverIndex === index;
+              const isDropTop = dropTarget?.index === index && dropTarget?.position === 'top';
+              const isDropBottom = dropTarget?.index === index && dropTarget?.position === 'bottom';
+              const isDraggable = canDragId === link.id;
+
               const isValidUrl =
                 !link.url ||
                 link.url === 'https://' ||
@@ -175,9 +220,11 @@ export function LinksEditor({
                   key={link.id}
                   id={`link-item-${link.id}`}
                   className={`link-card ${isDragging ? 'is-dragging' : ''} ${
-                    isOver ? 'is-drag-over' : ''
-                  } ${link.active === false ? 'is-disabled' : ''}`}
-                  draggable
+                    isDropTop ? 'drop-target-top' : ''
+                  } ${isDropBottom ? 'drop-target-bottom' : ''} ${
+                    link.active === false ? 'is-disabled' : ''
+                  }`}
+                  draggable={isDraggable}
                   onDragStart={(e) => handleDragStart(e, index)}
                   onDragOver={(e) => handleDragOver(e, index)}
                   onDragLeave={handleDragLeave}
@@ -189,6 +236,10 @@ export function LinksEditor({
                     className="drag-handle"
                     title="Gedrückt halten zum Verschieben"
                     aria-label="Reihenfolge ändern"
+                    onMouseDown={() => setCanDragId(link.id)}
+                    onMouseUp={() => setCanDragId(null)}
+                    onTouchStart={() => setCanDragId(link.id)}
+                    onTouchEnd={() => setCanDragId(null)}
                   >
                     <GripVertical size={16} />
                   </div>
@@ -200,6 +251,7 @@ export function LinksEditor({
                     title="Icon oder Bild für diesen Link anpassen"
                     onClick={() => setEditingIconLinkId(link.id)}
                     id={`btn-edit-icon-${link.id}`}
+                    onMouseDown={(e) => e.stopPropagation()}
                   >
                     <div className="link-icon-badge">
                       <LinkIcon
@@ -215,13 +267,22 @@ export function LinksEditor({
                   </button>
 
                   {/* Link Details Fields */}
-                  <div className="link-content-fields">
+                  <div
+                    className="link-content-fields"
+                    onMouseDown={(e) => e.stopPropagation()}
+                  >
                     <div className="form-group-compact">
                       <input
                         type="text"
                         className="form-input form-input-title"
                         placeholder="Link Titel"
                         value={link.title}
+                        draggable={false}
+                        onMouseDown={(e) => e.stopPropagation()}
+                        onDragStart={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                        }}
                         onChange={(e) =>
                           updateLink(link.id, 'title', e.target.value)
                         }
@@ -237,6 +298,12 @@ export function LinksEditor({
                           }`}
                           placeholder="https://deine-webseite.de"
                           value={link.url}
+                          draggable={false}
+                          onMouseDown={(e) => e.stopPropagation()}
+                          onDragStart={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                          }}
                           onChange={(e) =>
                             updateLink(link.id, 'url', e.target.value)
                           }
@@ -249,6 +316,7 @@ export function LinksEditor({
                             rel="noopener noreferrer"
                             className="url-test-link"
                             title="Link im neuen Tab testen"
+                            onMouseDown={(e) => e.stopPropagation()}
                           >
                             <ExternalLink size={13} />
                           </a>
@@ -263,7 +331,10 @@ export function LinksEditor({
                   </div>
 
                   {/* Action Controls */}
-                  <div className="link-actions-group">
+                  <div
+                    className="link-actions-group"
+                    onMouseDown={(e) => e.stopPropagation()}
+                  >
                     <div className="order-steppers">
                       <button
                         type="button"

@@ -4,9 +4,17 @@
  */
 
 export function getAppBasename() {
+  // If BASE_URL was set during build (e.g. in GitHub Actions via BASE_PATH)
+  const envBase = import.meta.env?.BASE_URL;
+  if (envBase && envBase !== '/' && envBase !== './') {
+    let clean = envBase.replace(/\/+$/, '');
+    if (!clean.startsWith('/')) clean = '/' + clean;
+    return clean;
+  }
+
   if (typeof window === 'undefined') return '';
   const { hostname, pathname } = window.location;
-  // If hosted on GitHub Pages (e.g. strudelcode.github.io/Linkspacee/)
+  // If hosted on GitHub Pages (e.g. username.github.io/Linkspacee/)
   if (hostname.endsWith('github.io')) {
     const segments = pathname.split('/').filter(Boolean);
     if (segments.length > 0) {

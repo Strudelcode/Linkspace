@@ -1,16 +1,14 @@
 import React, { useEffect, useRef, useState } from 'react';
 import QRCode from 'qrcode';
-import { X, Download, Copy, Check, Sparkles, ExternalLink, Globe, Sliders } from 'lucide-react';
+import { X, Download, Copy, Check } from 'lucide-react';
 import { Logo } from './Logo';
-import { getAppBaseUrl, getPublicProfileUrl } from '../utils/urlHelper';
+import { getPublicProfileUrl } from '../utils/urlHelper';
 
-export function QrCodeModal({ username, displayName, avatarUrl, onClose }) {
+export function QrCodeModal({ username, displayName, onClose }) {
   const [copied, setCopied] = useState(false);
-  const [customOrigin, setCustomOrigin] = useState(getAppBaseUrl());
-  const [showDomainConfig, setShowDomainConfig] = useState(false);
   const canvasRef = useRef(null);
 
-  const profileUrl = getPublicProfileUrl(username, customOrigin);
+  const profileUrl = getPublicProfileUrl(username);
 
   useEffect(() => {
     if (!username) return;
@@ -78,62 +76,7 @@ export function QrCodeModal({ username, displayName, avatarUrl, onClose }) {
             </div>
           </div>
 
-          {/* Domain configuration toggle */}
-          <div className="w-full mt-2 flex justify-center">
-            <button
-              type="button"
-              className="btn-domain-toggle"
-              onClick={() => setShowDomainConfig(!showDomainConfig)}
-            >
-              <Globe size={13} className="text-indigo-400" />
-              <span>{showDomainConfig ? 'Domain-Optionen verbergen' : 'Domain oder Host anpassen'}</span>
-            </button>
-          </div>
-
-          {showDomainConfig && (
-            <div className="w-full mt-2 p-2.5 bg-slate-900/80 rounded-xl border border-slate-800 text-left">
-              <label className="text-xs text-slate-400 block mb-1">Ziel-Domain für QR-Code:</label>
-              <div className="flex gap-2 mb-2">
-                <input
-                  type="text"
-                  className="form-input text-xs font-mono py-1.5"
-                  value={customOrigin}
-                  onChange={(e) => setCustomOrigin(e.target.value)}
-                  placeholder="https://strudelcode.github.io"
-                />
-                <button
-                  type="button"
-                  className="btn btn-secondary btn-sm text-xs py-1"
-                  onClick={() => setCustomOrigin(window.location.origin)}
-                  title="Auf aktuelle Browser-Domain zurücksetzen"
-                >
-                  Reset
-                </button>
-              </div>
-              <div className="flex flex-wrap gap-1.5 items-center mb-1">
-                <span className="text-[11px] text-slate-400">Schnellauswahl:</span>
-                <button
-                  type="button"
-                  className="px-2 py-0.5 text-[11px] rounded bg-slate-800 hover:bg-slate-700 text-indigo-300 font-mono transition-colors"
-                  onClick={() => setCustomOrigin('https://strudelcode.github.io')}
-                >
-                  strudelcode.github.io
-                </button>
-                <button
-                  type="button"
-                  className="px-2 py-0.5 text-[11px] rounded bg-slate-800 hover:bg-slate-700 text-slate-300 font-mono transition-colors"
-                  onClick={() => setCustomOrigin(window.location.origin)}
-                >
-                  Aktueller Host
-                </button>
-              </div>
-              <span className="text-[11px] text-slate-500 block mt-1">
-                Der QR-Code und Link passen sich in Echtzeit an die angegebene Domain an.
-              </span>
-            </div>
-          )}
-
-          <div className="qr-actions-grid mt-4">
+          <div className="qr-actions-grid mt-2">
             <button
               type="button"
               className="btn btn-secondary btn-sm"

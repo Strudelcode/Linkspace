@@ -385,22 +385,49 @@ function cacheSavedProfile(uid, completePayload, oldUsername, newUsername) {
   saveLocalUsernames(localUsernames);
 }
 
+function deepSanitizeFirestore(obj) {
+  if (obj === undefined || typeof obj === 'function' || typeof obj === 'symbol') {
+    return null;
+  }
+  if (obj === null || typeof obj !== 'object') {
+    return obj;
+  }
+  if (Array.isArray(obj)) {
+    return obj
+      .map(item => deepSanitizeFirestore(item))
+      .filter(item => item !== undefined);
+  }
+  const clean = {};
+  for (const [key, value] of Object.entries(obj)) {
+    if (value !== undefined && typeof value !== 'function' && typeof value !== 'symbol') {
+      const sanitized = deepSanitizeFirestore(value);
+      if (sanitized !== undefined) {
+        clean[key] = sanitized;
+      }
+    }
+  }
+  return clean;
+}
+
 export async function saveUserProfileTransaction(uid, profileData, oldUsername = '') {
   const validation = validateUsername(profileData.username);
   if (!validation.valid) throw new Error(validation.message);
 
   const newUsername = validation.username;
   const normalizedOld = (oldUsername || '').trim().toLowerCase();
-  const completePayload = {
+  
+  const rawPayload = {
     userId: uid,
     username: newUsername,
     displayName: profileData.displayName || 'Unbenannt',
     bio: profileData.bio || '',
     avatarUrl: profileData.avatarUrl || '',
-    links: profileData.links || [],
+    links: Array.isArray(profileData.links) ? profileData.links : [],
     styling: profileData.styling || {},
     updatedAt: Date.now()
   };
+
+  const completePayload = deepSanitizeFirestore(rawPayload);
 
   // Always keep local cache up to date immediately
   cacheSavedProfile(uid, completePayload, normalizedOld, newUsername);
